@@ -1,7 +1,7 @@
 <title>AM Ops Console</title>
 <script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.min.js"></script>
 <script>
   tailwind.config = { darkMode: 'class' };
 </script>
@@ -826,6 +826,7 @@
     return { text: dark ? '#94a3b8' : '#64748b', grid: dark ? '#1e293b' : '#e2e8f0' };
   }
   function buildCharts(){
+    if (typeof Chart === 'undefined') return; // Chart.js failed to load from the CDN — don't let that break the rest of the page
     chartInstances.forEach(function(c){ c.destroy(); });
     chartInstances = [];
     var tc = themeColors();
@@ -934,8 +935,9 @@
   }
 
   // Sample data renders immediately so the page is never blank, then the
-  // live feed (if configured) takes over the moment it answers.
-  initFromRecords(SAMPLE_RAW);
+  // live feed (if configured) takes over the moment it answers. Wrapped
+  // so a rendering hiccup (e.g. a CDN blip) can never block the live fetch.
+  try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
   loadLiveData();
 
 })();
