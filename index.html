@@ -32,6 +32,14 @@
   .logo-btn{ transition: transform .05s ease; }
   .logo-btn:hover{ transform: translateY(-1px); }
   .logo-btn:active{ transform: translateY(0) scale(.96); }
+  /* Sticky report headers: every table's header row stays visible while
+     the page scrolls, pinned just below the sticky top nav. --header-h
+     is measured live from the actual header element (see script at the
+     bottom of the page) so this stays correct even if the header's
+     height changes (badge text wrapping, smaller screens, etc). */
+  :root{ --header-h: 96px; }
+  table thead tr{ position: sticky; top: var(--header-h); z-index: 10; box-shadow: 0 1px 0 0 rgba(15,23,42,0.06); }
+  html.dark table thead tr{ box-shadow: 0 1px 0 0 rgba(0,0,0,0.4); }
 </style>
 
 <script>
@@ -106,7 +114,7 @@
         </div>
       </div>
 
-      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -141,7 +149,7 @@
           <div id="corpTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
       </div>
-      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -177,7 +185,7 @@
           <div id="policyTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
       </div>
-      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
             <thead>
@@ -229,7 +237,7 @@
 
       <div class="mb-8">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Complete portfolio directory — every active account assigned to this AM</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -256,7 +264,7 @@
 
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">30 / 60 / 90-day renewal watchlist</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -279,7 +287,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
         <div>
           <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Quarterly renewal exposure</h3>
-          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+          <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -300,26 +308,6 @@
         </div>
       </div>
 
-      <div class="mb-8">
-        <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">At-risk / churned account audit — tagged "Churned A/D" in Account Type (this AM's full history, not just active)</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
-          <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                  <th class="px-4 py-2.5 font-semibold">Org / Legal Entity</th>
-                  <th class="px-4 py-2.5 font-semibold">Product</th>
-                  <th class="px-4 py-2.5 font-semibold">Status</th>
-                  <th class="px-4 py-2.5 font-semibold">End Date</th>
-                </tr>
-              </thead>
-              <tbody id="churnAuditBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
-            </table>
-          </div>
-          <div class="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500" id="churnCount"></div>
-        </div>
-      </div>
-
       <!-- ===== 3. Client Operations & Onboarding Workbench ===== -->
       <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-2">
         <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">3 · Client Operations &amp; Onboarding Workbench</h2>
@@ -328,7 +316,7 @@
 
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Portal credentials &amp; login directory</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -346,7 +334,7 @@
 
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Policy structure &amp; coverage setup</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -366,7 +354,7 @@
 
       <div class="mb-8">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Billing &amp; payment tenure tracker</h3>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <table class="w-full text-sm">
             <thead>
               <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -425,7 +413,7 @@
 
       <div>
         <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Top 10 accounts by ARR</h2>
-        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm overflow-hidden">
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
               <thead>
@@ -511,7 +499,7 @@
       am: (r['Account Manager'] || '').toString().trim() || 'Unassigned',
       tier: (r['Size'] || '—').toString().trim(),
       // Fresh / Roll Over / Churned A/D — used for the Account Type
-      // breakdown and the at-risk/churn audit, not a health rating.
+      // breakdown, not a health rating.
       accountType: (r['Account Type'] || '').toString().trim() || '—',
       tpa: (r['TPA'] || '').toString().trim() || '—',
       broker: (r['Partner / Broker'] || r['Partner/Broker'] || '').toString().trim() || '—',
@@ -1171,20 +1159,6 @@
     mine.forEach(function(r){ accountTypeCounts[r.accountType] = (accountTypeCounts[r.accountType]||0) + 1; });
     renderDistribution('accountTypeDist', accountTypeCounts);
 
-    // Full history (not just active) so a churned account still shows up
-    // even after its policy has expired.
-    var churned = DATA.filter(function(r){ return r.am===am && r.accountType==='Churned A/D'; });
-    var shownChurned = limitRows('churn', churned);
-    document.getElementById('churnAuditBody').innerHTML = shownChurned.map(function(r){
-      return '<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">'+
-        '<td class="px-4 py-2.5"><div class="font-medium text-slate-800 dark:text-slate-100">'+r.org+'</div><div class="text-[11px] text-slate-400 dark:text-slate-500">'+r.legal+'</div></td>'+
-        '<td class="px-4 py-2.5">'+typePill(r.type)+'</td>'+
-        '<td class="px-4 py-2.5">'+statusPill(r.active, r.inScope, r.datesOk)+'</td>'+
-        '<td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">'+fmtDate(r.endDate)+'</td>'+
-      '</tr>';
-    }).join('') || '<tr><td colspan="4" class="px-4 py-8 text-center text-slate-400 text-sm">No accounts tagged Churned A/D for '+am+'. 🎈</td></tr>';
-    renderListFooter('churnCount', 'churn', churned.length, churned.length + ' tagged Churned A/D', renderAM);
-
     /* ---- 3. Client Operations & Onboarding Workbench ---- */
     var opsQ = clientOpsState.q.toLowerCase();
     var opsAccounts = !opsQ ? accounts : accounts.filter(function(c){
@@ -1392,6 +1366,17 @@
   // so a rendering hiccup (e.g. a CDN blip) can never block the live fetch.
   try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
   loadLiveData();
+
+  // Keep every sticky table header pinned exactly below the sticky top
+  // nav, whatever its real rendered height is (it wraps/shrinks on
+  // narrow screens and when the data badge text changes).
+  function syncHeaderHeightVar(){
+    var header = document.querySelector('header');
+    if (header) document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
+  }
+  syncHeaderHeightVar();
+  window.addEventListener('resize', syncHeaderHeightVar);
+  window.addEventListener('load', syncHeaderHeightVar);
 
 })();
 </script>
