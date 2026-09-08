@@ -124,6 +124,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="masterSearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+          <select id="masterCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
           <div id="masterStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
           <div id="masterTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
@@ -162,6 +163,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="corpSearch" type="text" placeholder="Search org, legal entity, city, AM" class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+          <select id="corpCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
           <div id="corpTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
       </div>
@@ -197,6 +199,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="policySearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+          <select id="policyCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
           <div id="policyStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
           <div id="policyTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
@@ -327,7 +330,10 @@
       <!-- ===== 3. Client Operations & Onboarding Workbench ===== -->
       <div class="flex items-center justify-between mb-3 pb-1 border-b border-slate-200 dark:border-slate-800 flex-wrap gap-2">
         <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">3 · Client Operations &amp; Onboarding Workbench</h2>
-        <input id="clientOpsSearch" type="text" placeholder="Search corp, legal entity or policy" class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+        <div class="flex items-center gap-2 flex-wrap">
+          <input id="clientOpsSearch" type="text" placeholder="Search corp, legal entity or policy" class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+          <select id="clientOpsCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
+        </div>
       </div>
 
       <div class="mb-4">
@@ -431,6 +437,28 @@
           </div>
         </div>
       </div>
+
+      <div class="mt-6">
+        <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Upcoming renewals (next 90 days)</h2>
+        <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
+            <table class="w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                  <th class="px-4 py-2.5 font-semibold">Org / Legal Entity</th>
+                  <th class="px-4 py-2.5 font-semibold">Product</th>
+                  <th class="px-4 py-2.5 font-semibold">AM</th>
+                  <th class="px-4 py-2.5 font-semibold">End Date</th>
+                  <th class="px-4 py-2.5 font-semibold text-right">Days Left</th>
+                  <th class="px-4 py-2.5 font-semibold text-right">Active ARR</th>
+                </tr>
+              </thead>
+              <tbody id="execRenewalsBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
+            </table>
+          </div>
+          <div class="px-4 py-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500" id="execRenewalsCount"></div>
+        </div>
+      </div>
     </section>
 
     <!-- ================= ADD ENTRY ================= -->
@@ -460,7 +488,7 @@
   <div id="editModalOverlay" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
     <div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-5">
       <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Edit policy</h3>
+        <h3 id="editModalTitle" class="text-sm font-semibold text-slate-800 dark:text-slate-100">Edit policy</h3>
         <button type="button" id="editModalClose" class="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
       </div>
       <form id="editModalForm">
@@ -799,6 +827,18 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
+  // City filter <select> shared by Master Data, Corp-Wise, Policy-Level
+  // and the AM Workbench's Client Ops search bar — options are rebuilt
+  // from whatever's actually in DATA so a new city on the sheet shows up
+  // automatically, and the viewer's current pick is preserved.
+  function populateCitySelect(selectEl, selected){
+    var cities = Array.from(new Set(DATA.map(function(r){ return r.city; }).filter(function(c){ return c && c!=='—'; }))).sort();
+    var options = '<option value="all">All cities</option>' + cities.map(function(c){
+      return '<option value="' + c + '" ' + (c===selected?'selected':'') + '>' + c + '</option>';
+    }).join('');
+    if (selectEl.innerHTML !== options) selectEl.innerHTML = options;
+  }
+
   // Shared field set for both "Add Entry" and the Master Data edit modal,
   // so the two never drift out of sync with each other or with the real
   // sheet's column headers (the object keys returned by readPolicyFields
@@ -877,11 +917,18 @@
     };
   }
 
-  /* ---- Edit modal (used from Master Data rows) ---- */
+  /* ---- Edit / Renew modal (shared) ----
+     Two modes, one modal: "update" (Master Data's Edit button — patches
+     the exact sheet row in place) and "renew" ("Mark renewed" — prefills
+     the account's basic identity, leaves the term/financial fields blank
+     for the AM to fill in, and on save ADDS a brand-new row to the sheet
+     rather than overwriting the expiring one). */
   var editModalOverlay = document.getElementById('editModalOverlay');
   function openEditModal(rowId){
     var r = DATA.find(function(d){ return d.rowId===rowId; });
     if (!r) return;
+    document.getElementById('editModalTitle').textContent = 'Edit policy';
+    document.getElementById('editModalSubmit').textContent = 'Save changes';
     document.getElementById('editModalFields').innerHTML = policyFieldsHtml('edit', {
       orgName: r.org, legalEntity: r.legal==='—'?'':r.legal, policyName: r.policyName, policyType: r.type,
       accountType: r.accountType==='—'?'':r.accountType, am: r.am,
@@ -891,9 +938,32 @@
       lives: r.lives||'', si: r.si||'', structure: r.structure==='—'?'':r.structure, tenure: r.tenure==='—'?'':r.tenure,
       city: r.city==='—'?'':r.city, portalLogin: r.portalLogin==='—'?'':r.portalLogin
     });
+    editModalOverlay.dataset.mode = 'update';
     editModalOverlay.dataset.sheetRow = (r.sheetRow!=null) ? String(r.sheetRow) : '';
     var statusEl = document.getElementById('editModalStatus');
     statusEl.textContent = r.sheetRow ? '' : "No sheet row reference for this policy yet — reload live data (it needs the updated Apps Script that returns each row's _row) before this can save.";
+    editModalOverlay.classList.remove('hidden'); editModalOverlay.classList.add('flex');
+  }
+  function openRenewModal(rowId){
+    var r = DATA.find(function(d){ return d.rowId===rowId; });
+    if (!r) return;
+    document.getElementById('editModalTitle').textContent = 'Renew — ' + r.org;
+    document.getElementById('editModalSubmit').textContent = 'Save renewal to Master Sheet';
+    // Only the account's basic identity carries over; every term / money
+    // field (dates, premium, emp count, lives, SI) starts blank so the AM
+    // enters the actual renewed terms rather than a guessed extension.
+    document.getElementById('editModalFields').innerHTML = policyFieldsHtml('edit', {
+      orgName: r.org, legalEntity: r.legal==='—'?'':r.legal, policyName: r.policyName, policyType: r.type,
+      accountType: 'Roll Over', am: r.am,
+      startDate: '', endDate: '',
+      insurer: r.insurer==='—'?'':r.insurer, tpa: r.tpa==='—'?'':r.tpa, broker: r.broker==='—'?'':r.broker,
+      premium: '', premiumGST: '', empCount: '', size: r.tier==='—'?'':r.tier,
+      lives: '', si: '', structure: r.structure==='—'?'':r.structure, tenure: r.tenure==='—'?'':r.tenure,
+      city: r.city==='—'?'':r.city, portalLogin: r.portalLogin==='—'?'':r.portalLogin
+    });
+    editModalOverlay.dataset.mode = 'renew';
+    editModalOverlay.dataset.sheetRow = '';
+    document.getElementById('editModalStatus').textContent = 'This saves as a new row on the Master Sheet for the renewed term — the expiring policy\'s row is left untouched.';
     editModalOverlay.classList.remove('hidden'); editModalOverlay.classList.add('flex');
   }
   function closeEditModal(){
@@ -904,11 +974,33 @@
   editModalOverlay.addEventListener('click', function(e){ if (e.target===editModalOverlay) closeEditModal(); });
   document.getElementById('editModalForm').addEventListener('submit', function(e){
     e.preventDefault();
-    var sheetRow = editModalOverlay.dataset.sheetRow;
-    if (!sheetRow) { toast('Cannot save — this row has no sheet reference. Reload live data first.'); return; }
+    var mode = editModalOverlay.dataset.mode || 'update';
     var data = readPolicyFields('edit');
     var btn = document.getElementById('editModalSubmit');
     var statusEl = document.getElementById('editModalStatus');
+
+    if (mode === 'renew') {
+      if (!data['Org Name'] || !data['Start Date'] || !data['End Date']) {
+        toast('Start Date and End Date are required to save the renewal.');
+        return;
+      }
+      btn.disabled = true; btn.textContent = 'Saving…';
+      postToSheet('add', data).then(function(){
+        toast('🎉 Renewal saved as a new row on the Master Sheet — refreshing…');
+        confettiBurst(0.82, 0.35);
+        closeEditModal();
+        loadLiveData();
+      }).catch(function(err){
+        statusEl.textContent = 'Could not save: ' + err.message;
+        toast('Could not save the renewal to the Master Sheet: ' + err.message);
+      }).finally(function(){
+        btn.disabled = false; btn.textContent = 'Save renewal to Master Sheet';
+      });
+      return;
+    }
+
+    var sheetRow = editModalOverlay.dataset.sheetRow;
+    if (!sheetRow) { toast('Cannot save — this row has no sheet reference. Reload live data first.'); return; }
     btn.disabled = true; btn.textContent = 'Saving…';
     postToSheet('update', data, Number(sheetRow)).then(function(){
       toast('✅ Saved to the Master Sheet — refreshing…');
@@ -947,7 +1039,7 @@
   });
 
   /* ---------------- MASTER DATA ---------------- */
-  var masterState = { q:'', status:'all', type:'all' };
+  var masterState = { q:'', status:'all', type:'all', city:'all' };
   var masterSort = { key:null, dir:1 };
   var masterGetters = {
     org:function(r){return r.org.toLowerCase();}, type:function(r){return r.type;}, insurer:function(r){return r.insurer;},
@@ -983,6 +1075,8 @@
       {key:'legacy', label:'Legacy'}
     ], masterState.type, function(k){ masterState.type=k; renderMaster(); });
 
+    populateCitySelect(document.getElementById('masterCityFilter'), masterState.city);
+
     var rows = DATA.filter(function(r){
       if (masterState.status==='active' && !r.active) return false;
       if (masterState.status==='expired' && r.active) return false;
@@ -990,6 +1084,7 @@
         if (masterState.type==='legacy' && r.inScope) return false;
         if (masterState.type!=='legacy' && r.type!==masterState.type) return false;
       }
+      if (masterState.city!=='all' && r.city!==masterState.city) return false;
       if (masterState.q){
         var hay = (r.org+' '+r.legal+' '+r.policyLabel).toLowerCase();
         if (hay.indexOf(masterState.q.toLowerCase())===-1) return false;
@@ -1019,6 +1114,7 @@
     });
   }
   document.getElementById('masterSearch').addEventListener('input', function(e){ masterState.q = e.target.value; renderMaster(); });
+  document.getElementById('masterCityFilter').addEventListener('change', function(e){ masterState.city = e.target.value; renderMaster(); });
   renderMaster();
 
   /* ---------------- CORP-WISE ---------------- */
@@ -1037,7 +1133,7 @@
     return Object.keys(types).map(function(t){ return typePill(t); }).join(' ');
   }
 
-  var corpState = { q:'', type:'all' };
+  var corpState = { q:'', type:'all', city:'all' };
   var corpSort = { key:null, dir:1 };
   var corpGetters = {
     org:function(c){return c.org.toLowerCase();}, tier:function(c){return c.tier;}, city:function(c){return c.city;}, am:function(c){return c.am;},
@@ -1052,9 +1148,12 @@
       {key:'HCU', label:'HCU'}
     ], corpState.type, function(k){ corpState.type=k; renderCorp(); });
 
+    populateCitySelect(document.getElementById('corpCityFilter'), corpState.city);
+
     var q = corpState.q.toLowerCase();
     var rows = CORP_ROWS.filter(function(c){
       if (corpState.type!=='all' && !c.types[corpState.type]) return false;
+      if (corpState.city!=='all' && c.city!==corpState.city) return false;
       if (!q) return true;
       var hay = (c.org+' '+c.legal+' '+c.city+' '+c.am).toLowerCase();
       return hay.indexOf(q)!==-1;
@@ -1096,6 +1195,7 @@
     renderListFooter('corpCount', 'corp', rows.length, rows.length+' corporate account'+(rows.length===1?'':'s'), renderCorp);
   }
   document.getElementById('corpSearch').addEventListener('input', function(e){ corpState.q = e.target.value; renderCorp(); });
+  document.getElementById('corpCityFilter').addEventListener('change', function(e){ corpState.city = e.target.value; renderCorp(); });
   renderCorp();
 
   /* ---------------- POLICY-LEVEL ---------------- */
@@ -1103,7 +1203,7 @@
   // every policy that entity has ever had — active and expired alike.
   // Clicking a row expands the full policy history, same accordion
   // pattern as Corp-Wise View.
-  var policyState = { q:'', status:'all', type:'all' };
+  var policyState = { q:'', status:'all', type:'all', city:'all' };
   function buildPolicyOrgRows(){
     // Grouped strictly by the sheet's Org Name column — every legal
     // entity under the same org (e.g. all "Godrej Properties Limited",
@@ -1175,12 +1275,15 @@
       {key:'HCU', label:'HCU'}
     ], policyState.type, function(k){ policyState.type=k; renderPolicy(); });
 
+    populateCitySelect(document.getElementById('policyCityFilter'), policyState.city);
+
     var q = policyState.q.toLowerCase();
     var rows = POLICY_ORG_ROWS.map(function(c){
       var fp = c.policies.filter(function(r){
         if (policyState.status==='active' && !r.active) return false;
         if (policyState.status==='expired' && r.active) return false;
         if (policyState.type!=='all' && r.type!==policyState.type) return false;
+        if (policyState.city!=='all' && r.city!==policyState.city) return false;
         return true;
       });
       return { base:c, policies:fp };
@@ -1233,11 +1336,12 @@
     });
   }
   document.getElementById('policySearch').addEventListener('input', function(e){ policyState.q = e.target.value; renderPolicy(); });
+  document.getElementById('policyCityFilter').addEventListener('change', function(e){ policyState.city = e.target.value; renderPolicy(); });
   renderPolicy();
 
   /* ---------------- AM WORKBENCH ---------------- */
   var amSelect = document.getElementById('amSelect');
-  var clientOpsState = { q:'' };
+  var clientOpsState = { q:'', city:'all' };
   function populateAMSelect(){
     var current = amSelect.value;
     var AMS = Array.from(new Set(DATA.map(function(r){return r.am;}))).sort();
@@ -1253,30 +1357,6 @@
       '<div class="text-[11px] font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500 mb-1">'+label+'</div>'+
       '<div class="text-xl font-semibold tabular-nums '+toneCls+'" data-counter data-target="'+raw+'" data-format="'+format+'">'+initial+'</div>'+
     '</div>';
-  }
-
-  function renewPolicy(rowId){
-    var r = DATA.find(function(d){ return d.rowId===rowId; });
-    if (!r) return;
-    var newEnd = new Date(r.endDate); newEnd.setFullYear(newEnd.getFullYear()+1);
-    var newPremium = Math.round(r.premium*1.08);
-    if (!r.sheetRow) {
-      toast('Cannot renew ' + r.org + ' — this row has no sheet reference. Reload live data first.');
-      return;
-    }
-    toast('Saving renewal for ' + r.org + '…');
-    postToSheet('update', {
-      'End Date': isoDate(newEnd),
-      'Inception Premium (inc GST)': newPremium,
-      'Quarter': quarterLabel(newEnd),
-      'Renewal Month': monthLabel(newEnd)
-    }, r.sheetRow).then(function(){
-      toast('🎉 ' + r.org + ' renewed — locked in through ' + fmtDate(newEnd));
-      confettiBurst(0.82, 0.35);
-      loadLiveData();
-    }).catch(function(err){
-      toast('Could not save the renewal to the Master Sheet: ' + err.message);
-    });
   }
 
   // Generic small "label / count / bar" breakdown widget, reused for
@@ -1372,7 +1452,7 @@
     renderListFooter('watchlistCount', 'watchlist', watch.length, watch.length + ' polic' + (watch.length===1?'y':'ies') + ' renewing within 90 days', renderAM);
 
     document.querySelectorAll('[data-renew]').forEach(function(btn){
-      btn.addEventListener('click', function(){ renewPolicy(btn.getAttribute('data-renew')); });
+      btn.addEventListener('click', function(){ openRenewModal(btn.getAttribute('data-renew')); });
     });
 
     var quarterMap = {};
@@ -1395,11 +1475,16 @@
     renderDistribution('accountTypeDist', accountTypeCounts);
 
     /* ---- 3. Client Operations & Onboarding Workbench ---- */
+    populateCitySelect(document.getElementById('clientOpsCityFilter'), clientOpsState.city);
     var opsQ = clientOpsState.q.toLowerCase();
-    var opsAccounts = !opsQ ? accounts : accounts.filter(function(c){
+    var opsAccounts = accounts.filter(function(c){
+      if (clientOpsState.city!=='all' && c.city!==clientOpsState.city) return false;
+      if (!opsQ) return true;
       return (c.org+' '+c.legal+' '+c.portalLogin).toLowerCase().indexOf(opsQ)!==-1;
     });
-    var opsPolicies = !opsQ ? mine : mine.filter(function(r){
+    var opsPolicies = mine.filter(function(r){
+      if (clientOpsState.city!=='all' && r.city!==clientOpsState.city) return false;
+      if (!opsQ) return true;
       return (r.org+' '+r.legal+' '+(r.policyLabel||'')).toLowerCase().indexOf(opsQ)!==-1;
     });
 
@@ -1436,6 +1521,7 @@
   }
   amSelect.addEventListener('change', renderAM);
   document.getElementById('clientOpsSearch').addEventListener('input', function(e){ clientOpsState.q = e.target.value; renderAM(); });
+  document.getElementById('clientOpsCityFilter').addEventListener('change', function(e){ clientOpsState.city = e.target.value; renderAM(); });
 
   /* ---------------- EXECUTIVE DASHBOARD ---------------- */
   function renderExec(){
@@ -1464,6 +1550,21 @@
         '<td class="px-4 py-2.5 text-right tabular-nums text-slate-600 dark:text-slate-300">'+c.lives+'</td>'+
       '</tr>';
     }).join('');
+
+    var renewals = ACTIVE_IN_SCOPE.filter(function(r){ return r.bucket!==null; })
+      .sort(function(a,b){ return a.daysLeft-b.daysLeft; });
+    var shownRenewals = limitRows('execRenewals', renewals);
+    document.getElementById('execRenewalsBody').innerHTML = shownRenewals.map(function(r){
+      return '<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/50">'+
+        '<td class="px-4 py-2.5"><div class="font-medium text-slate-800 dark:text-slate-100">'+r.org+'</div><div class="text-[11px] text-slate-400 dark:text-slate-500">'+r.legal+'</div></td>'+
+        '<td class="px-4 py-2.5">'+typePill(r.type)+'</td>'+
+        '<td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">'+r.am+'</td>'+
+        '<td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">'+fmtDate(r.endDate)+'</td>'+
+        '<td class="px-4 py-2.5 text-right">'+bucketPill(r.bucket)+' <span class="tabular-nums text-slate-500 dark:text-slate-400">'+r.daysLeft+'d</span></td>'+
+        '<td class="px-4 py-2.5 text-right tabular-nums font-medium text-slate-800 dark:text-slate-100">'+fmtINR(r.premium)+'</td>'+
+      '</tr>';
+    }).join('') || '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400 text-sm">Nothing renewing across the whole book in the next 90 days. 🎈</td></tr>';
+    renderListFooter('execRenewalsCount', 'execRenewals', renewals.length, renewals.length + ' polic' + (renewals.length===1?'y':'ies') + ' renewing within 90 days, across all AMs', renderExec);
   }
 
   /* ---- charts ---- */
