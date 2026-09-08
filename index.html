@@ -610,6 +610,15 @@
   function daysBetween(a,b){ return Math.round((b-a)/86400000); }
   function fmtDate(d){ return d ? d.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '—'; }
   function fmtINR(n){ return '₹' + Math.round(n||0).toLocaleString('en-IN'); }
+  // True for a Size/tier value that's really just a placeholder — blank,
+  // or someone typed a bare "-" (or the dashboard's own "—") into the
+  // sheet meaning "not set." Used to keep tier distribution reports from
+  // showing a meaningless "-" bucket.
+  function isBlankTierValue(t){
+    if (!t) return true;
+    var s = String(t).trim();
+    return !s || /^[\s\-‐‑‒–—―]+$/.test(s);
+  }
   function quarterLabel(d){ if(!d) return '—'; var q = Math.floor(d.getMonth()/3)+1; return 'Q'+q+"'"+String(d.getFullYear()).slice(-2); }
   function monthLabel(d){ return d ? d.toLocaleDateString('en-IN',{month:'short',year:'numeric'}) : '—'; }
 
@@ -1463,8 +1472,10 @@
     animateCounters(kpiHost);
 
     /* ---- 1. Portfolio & Revenue Overview ---- */
+    // Skip accounts with no Size value on the sheet ("—") — they'd just
+    // show up as a meaningless "-" bucket and dilute the real tiers.
     var tierCounts = {};
-    accounts.forEach(function(c){ tierCounts[c.tier] = (tierCounts[c.tier]||0) + 1; });
+    accounts.forEach(function(c){ if (!isBlankTierValue(c.tier)) tierCounts[c.tier] = (tierCounts[c.tier]||0) + 1; });
     renderDistribution('tierDist', tierCounts);
 
     var mixCounts = { 'Even OPD only':0, 'HCU only':0, 'Both':0 };
@@ -1636,8 +1647,10 @@
     Chart.defaults.font.family = 'ui-sans-serif, system-ui, sans-serif';
     Chart.defaults.font.size = 11;
 
+    // Same rule as the AM Workbench's tier distribution — accounts with
+    // no Size value ("—") are excluded rather than shown as a "-" bar.
     var byTier = {};
-    CORP_ROWS.forEach(function(c){ byTier[c.tier] = (byTier[c.tier]||0) + c.arr; });
+    CORP_ROWS.forEach(function(c){ if (!isBlankTierValue(c.tier)) byTier[c.tier] = (byTier[c.tier]||0) + c.arr; });
     chartInstances.push(new Chart(document.getElementById('tierChart'), {
       type:'bar',
       data:{ labels:Object.keys(byTier), datasets:[{ data:Object.values(byTier), backgroundColor:'#0055ff', borderRadius:6, maxBarThickness:36 }] },
