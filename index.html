@@ -124,7 +124,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="masterSearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
-          <select id="masterCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
+          <div id="masterCityFilter" class="relative inline-block"></div>
           <div id="masterStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
           <div id="masterTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
@@ -163,7 +163,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="corpSearch" type="text" placeholder="Search org, legal entity, city, AM" class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
-          <select id="corpCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
+          <div id="corpCityFilter" class="relative inline-block"></div>
           <div id="corpTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
       </div>
@@ -199,7 +199,7 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="policySearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
-          <select id="policyCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
+          <div id="policyCityFilter" class="relative inline-block"></div>
           <div id="policyStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
           <div id="policyTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
@@ -332,7 +332,7 @@
         <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100">3 · Client Operations &amp; Onboarding Workbench</h2>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="clientOpsSearch" type="text" placeholder="Search corp, legal entity or policy" class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
-          <select id="clientOpsCityFilter" class="rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-1.5 text-xs font-medium outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900"></select>
+          <div id="clientOpsCityFilter" class="relative inline-block"></div>
         </div>
       </div>
 
@@ -827,17 +827,75 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
-  // City filter <select> shared by Master Data, Corp-Wise, Policy-Level
-  // and the AM Workbench's Client Ops search bar — options are rebuilt
-  // from whatever's actually in DATA so a new city on the sheet shows up
-  // automatically, and the viewer's current pick is preserved.
-  function populateCitySelect(selectEl, selected){
-    var cities = Array.from(new Set(DATA.map(function(r){ return r.city; }).filter(function(c){ return c && c!=='—'; }))).sort();
-    var options = '<option value="all">All cities</option>' + cities.map(function(c){
-      return '<option value="' + c + '" ' + (c===selected?'selected':'') + '>' + c + '</option>';
-    }).join('');
-    if (selectEl.innerHTML !== options) selectEl.innerHTML = options;
+  // Multi-select city filter, shared by Master Data, Corp-Wise,
+  // Policy-Level and the AM Workbench's Client Ops search bar. A button
+  // showing "All cities" / one city name / "N cities" opens a checkbox
+  // panel; the option list is rebuilt from whatever's actually in DATA
+  // so a new city on the sheet shows up automatically. Only one panel
+  // is ever open at a time (openCityFilterId), and a document-level
+  // click closes it if you click anywhere outside it.
+  var openCityFilterId = null;
+  var cityFilterSelfRedraw = {}; // containerId -> redraw just this filter component (open/close, no data refilter)
+  function renderCityMultiFilter(containerId, selected, onChangeCities, rerender){
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var redrawSelf = function(){ renderCityMultiFilter(containerId, selected, onChangeCities, rerender); };
+    cityFilterSelfRedraw[containerId] = redrawSelf;
+
+    var allCities = Array.from(new Set(DATA.map(function(r){ return r.city; }).filter(function(c){ return c && c!=='—'; }))).sort();
+    var isOpen = openCityFilterId === containerId;
+    var label = selected.length===0 ? 'All cities' : (selected.length===1 ? selected[0] : selected.length + ' cities');
+
+    var html = '<button type="button" class="w-full sm:w-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 whitespace-nowrap">'+
+      '<span>'+label+'</span><span class="text-slate-400 text-[10px]">▾</span></button>';
+
+    if (isOpen){
+      html += '<div class="absolute right-0 sm:left-0 z-20 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">'+
+        '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer">'+
+          '<input type="checkbox" data-city-all '+(selected.length===0?'checked':'')+' /> All cities'+
+        '</label>'+
+        '<div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>'+
+        (allCities.length ? allCities.map(function(c){
+          return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-xs cursor-pointer">'+
+            '<input type="checkbox" data-city-opt value="'+c+'" '+(selected.indexOf(c)!==-1?'checked':'')+' /> '+c+
+          '</label>';
+        }).join('') : '<div class="px-2 py-1.5 text-xs text-slate-400">No cities in the data yet.</div>') +
+      '</div>';
+    }
+    container.innerHTML = html;
+
+    // Opening/closing the panel only redraws this small component — it
+    // must NOT trigger the owning tab's full render, which would rebuild
+    // the whole table and collapse any accordion row the viewer has
+    // expanded. Only an actual selection change (below) needs the real
+    // rerender, since that's what has to refilter the data.
+    container.querySelector('button').addEventListener('click', function(e){
+      e.stopPropagation();
+      openCityFilterId = isOpen ? null : containerId;
+      redrawSelf();
+    });
+
+    if (isOpen){
+      var allCb = container.querySelector('[data-city-all]');
+      if (allCb) allCb.addEventListener('change', function(){ onChangeCities([]); rerender(); });
+      container.querySelectorAll('[data-city-opt]').forEach(function(cb){
+        cb.addEventListener('change', function(){
+          var vals = Array.prototype.slice.call(container.querySelectorAll('[data-city-opt]:checked')).map(function(x){ return x.value; });
+          onChangeCities(vals);
+          rerender();
+        });
+      });
+    }
   }
+  document.addEventListener('click', function(e){
+    if (!openCityFilterId) return;
+    var container = document.getElementById(openCityFilterId);
+    if (container && container.contains(e.target)) return; // click was inside the open panel/button — its own handler deals with it
+    var id = openCityFilterId;
+    openCityFilterId = null;
+    var redraw = cityFilterSelfRedraw[id];
+    if (redraw) redraw();
+  });
 
   // Shared field set for both "Add Entry" and the Master Data edit modal,
   // so the two never drift out of sync with each other or with the real
@@ -1039,7 +1097,7 @@
   });
 
   /* ---------------- MASTER DATA ---------------- */
-  var masterState = { q:'', status:'all', type:'all', city:'all' };
+  var masterState = { q:'', status:'all', type:'all', cities:[] };
   var masterSort = { key:null, dir:1 };
   var masterGetters = {
     org:function(r){return r.org.toLowerCase();}, type:function(r){return r.type;}, insurer:function(r){return r.insurer;},
@@ -1075,7 +1133,7 @@
       {key:'legacy', label:'Legacy'}
     ], masterState.type, function(k){ masterState.type=k; renderMaster(); });
 
-    populateCitySelect(document.getElementById('masterCityFilter'), masterState.city);
+    renderCityMultiFilter('masterCityFilter', masterState.cities, function(vals){ masterState.cities = vals; }, renderMaster);
 
     var rows = DATA.filter(function(r){
       if (masterState.status==='active' && !r.active) return false;
@@ -1084,7 +1142,7 @@
         if (masterState.type==='legacy' && r.inScope) return false;
         if (masterState.type!=='legacy' && r.type!==masterState.type) return false;
       }
-      if (masterState.city!=='all' && r.city!==masterState.city) return false;
+      if (masterState.cities.length && masterState.cities.indexOf(r.city)===-1) return false;
       if (masterState.q){
         var hay = (r.org+' '+r.legal+' '+r.policyLabel).toLowerCase();
         if (hay.indexOf(masterState.q.toLowerCase())===-1) return false;
@@ -1114,7 +1172,6 @@
     });
   }
   document.getElementById('masterSearch').addEventListener('input', function(e){ masterState.q = e.target.value; renderMaster(); });
-  document.getElementById('masterCityFilter').addEventListener('change', function(e){ masterState.city = e.target.value; renderMaster(); });
   renderMaster();
 
   /* ---------------- CORP-WISE ---------------- */
@@ -1133,7 +1190,7 @@
     return Object.keys(types).map(function(t){ return typePill(t); }).join(' ');
   }
 
-  var corpState = { q:'', type:'all', city:'all' };
+  var corpState = { q:'', type:'all', cities:[] };
   var corpSort = { key:null, dir:1 };
   var corpGetters = {
     org:function(c){return c.org.toLowerCase();}, tier:function(c){return c.tier;}, city:function(c){return c.city;}, am:function(c){return c.am;},
@@ -1148,12 +1205,12 @@
       {key:'HCU', label:'HCU'}
     ], corpState.type, function(k){ corpState.type=k; renderCorp(); });
 
-    populateCitySelect(document.getElementById('corpCityFilter'), corpState.city);
+    renderCityMultiFilter('corpCityFilter', corpState.cities, function(vals){ corpState.cities = vals; }, renderCorp);
 
     var q = corpState.q.toLowerCase();
     var rows = CORP_ROWS.filter(function(c){
       if (corpState.type!=='all' && !c.types[corpState.type]) return false;
-      if (corpState.city!=='all' && c.city!==corpState.city) return false;
+      if (corpState.cities.length && corpState.cities.indexOf(c.city)===-1) return false;
       if (!q) return true;
       var hay = (c.org+' '+c.legal+' '+c.city+' '+c.am).toLowerCase();
       return hay.indexOf(q)!==-1;
@@ -1195,7 +1252,6 @@
     renderListFooter('corpCount', 'corp', rows.length, rows.length+' corporate account'+(rows.length===1?'':'s'), renderCorp);
   }
   document.getElementById('corpSearch').addEventListener('input', function(e){ corpState.q = e.target.value; renderCorp(); });
-  document.getElementById('corpCityFilter').addEventListener('change', function(e){ corpState.city = e.target.value; renderCorp(); });
   renderCorp();
 
   /* ---------------- POLICY-LEVEL ---------------- */
@@ -1203,7 +1259,7 @@
   // every policy that entity has ever had — active and expired alike.
   // Clicking a row expands the full policy history, same accordion
   // pattern as Corp-Wise View.
-  var policyState = { q:'', status:'all', type:'all', city:'all' };
+  var policyState = { q:'', status:'all', type:'all', cities:[] };
   function buildPolicyOrgRows(){
     // Grouped strictly by the sheet's Org Name column — every legal
     // entity under the same org (e.g. all "Godrej Properties Limited",
@@ -1275,7 +1331,7 @@
       {key:'HCU', label:'HCU'}
     ], policyState.type, function(k){ policyState.type=k; renderPolicy(); });
 
-    populateCitySelect(document.getElementById('policyCityFilter'), policyState.city);
+    renderCityMultiFilter('policyCityFilter', policyState.cities, function(vals){ policyState.cities = vals; }, renderPolicy);
 
     var q = policyState.q.toLowerCase();
     var rows = POLICY_ORG_ROWS.map(function(c){
@@ -1283,7 +1339,7 @@
         if (policyState.status==='active' && !r.active) return false;
         if (policyState.status==='expired' && r.active) return false;
         if (policyState.type!=='all' && r.type!==policyState.type) return false;
-        if (policyState.city!=='all' && r.city!==policyState.city) return false;
+        if (policyState.cities.length && policyState.cities.indexOf(r.city)===-1) return false;
         return true;
       });
       return { base:c, policies:fp };
@@ -1336,12 +1392,11 @@
     });
   }
   document.getElementById('policySearch').addEventListener('input', function(e){ policyState.q = e.target.value; renderPolicy(); });
-  document.getElementById('policyCityFilter').addEventListener('change', function(e){ policyState.city = e.target.value; renderPolicy(); });
   renderPolicy();
 
   /* ---------------- AM WORKBENCH ---------------- */
   var amSelect = document.getElementById('amSelect');
-  var clientOpsState = { q:'', city:'all' };
+  var clientOpsState = { q:'', cities:[] };
   function populateAMSelect(){
     var current = amSelect.value;
     var AMS = Array.from(new Set(DATA.map(function(r){return r.am;}))).sort();
@@ -1475,15 +1530,15 @@
     renderDistribution('accountTypeDist', accountTypeCounts);
 
     /* ---- 3. Client Operations & Onboarding Workbench ---- */
-    populateCitySelect(document.getElementById('clientOpsCityFilter'), clientOpsState.city);
+    renderCityMultiFilter('clientOpsCityFilter', clientOpsState.cities, function(vals){ clientOpsState.cities = vals; }, renderAM);
     var opsQ = clientOpsState.q.toLowerCase();
     var opsAccounts = accounts.filter(function(c){
-      if (clientOpsState.city!=='all' && c.city!==clientOpsState.city) return false;
+      if (clientOpsState.cities.length && clientOpsState.cities.indexOf(c.city)===-1) return false;
       if (!opsQ) return true;
       return (c.org+' '+c.legal+' '+c.portalLogin).toLowerCase().indexOf(opsQ)!==-1;
     });
     var opsPolicies = mine.filter(function(r){
-      if (clientOpsState.city!=='all' && r.city!==clientOpsState.city) return false;
+      if (clientOpsState.cities.length && clientOpsState.cities.indexOf(r.city)===-1) return false;
       if (!opsQ) return true;
       return (r.org+' '+r.legal+' '+(r.policyLabel||'')).toLowerCase().indexOf(opsQ)!==-1;
     });
@@ -1521,7 +1576,6 @@
   }
   amSelect.addEventListener('change', renderAM);
   document.getElementById('clientOpsSearch').addEventListener('input', function(e){ clientOpsState.q = e.target.value; renderAM(); });
-  document.getElementById('clientOpsCityFilter').addEventListener('change', function(e){ clientOpsState.city = e.target.value; renderAM(); });
 
   /* ---------------- EXECUTIVE DASHBOARD ---------------- */
   function renderExec(){
