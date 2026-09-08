@@ -32,21 +32,20 @@
   .logo-btn{ transition: transform .05s ease; }
   .logo-btn:hover{ transform: translateY(-1px); }
   .logo-btn:active{ transform: translateY(0) scale(.96); }
-  /* Sticky report headers: every table's header row stays visible while
-     the page scrolls, pinned just below the sticky top nav. --header-h
-     is measured live from the actual header element (see script at the
-     bottom of the page) so this stays correct even if the header's
-     height changes (badge text wrapping, smaller screens, etc).
+  /* Sticky report headers: each table now scrolls in its own boxed area
+     (max-h + overflow-y-auto on the .overflow-x-auto wrapper) instead of
+     the whole page scrolling past it. That makes the table itself the
+     sticky positioning container, which is what makes header-row
+     stickiness reliable — sticking a table header to the *page* scroll
+     (top: <page header height>) was what caused the ghosting/overlap
+     glitch: the table's own ancestor chain wasn't the scrolling element,
+     so the browser had no consistent box to pin the header against.
      Sticky is applied per-<th> (not to the <tr>/<thead>) with its own
-     solid background — sticking the row itself causes ghosting/overlap
-     rendering glitches in table layouts, since the row's background
-     doesn't reliably composite over scrolling body rows once it's torn
-     out of normal flow. Per-cell sticky is the reliable cross-browser
-     pattern for plain HTML tables. */
-  :root{ --header-h: 96px; }
+     solid background, which is the reliable cross-browser pattern for
+     plain HTML tables regardless of scroll container. */
   table thead th{
     position: sticky;
-    top: var(--header-h);
+    top: 0;
     z-index: 10;
     background: #f8fafc;
     box-shadow: inset 0 -1px 0 0 rgba(15,23,42,0.08), 0 1px 0 0 rgba(15,23,42,0.06);
@@ -131,7 +130,7 @@
       </div>
 
       <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
           <table class="w-full text-sm">
             <thead>
               <tr id="masterHead" class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -167,7 +166,7 @@
         </div>
       </div>
       <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
           <table class="w-full text-sm">
             <thead>
               <tr id="corpHead" class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -203,7 +202,7 @@
         </div>
       </div>
       <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-        <div class="overflow-x-auto">
+        <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
           <table class="w-full text-sm">
             <thead>
               <tr id="policyHead" class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -255,7 +254,7 @@
       <div class="mb-8">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Complete portfolio directory — every active account assigned to this AM</h3>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -282,7 +281,7 @@
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">30 / 60 / 90-day renewal watchlist</h3>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -334,7 +333,7 @@
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Portal credentials &amp; login directory</h3>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -352,7 +351,7 @@
       <div class="mb-4">
         <h3 class="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wide mb-2">Policy structure &amp; coverage setup</h3>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -415,7 +414,7 @@
       <div>
         <h2 class="text-sm font-semibold text-slate-800 dark:text-slate-100 mb-2">Top 10 accounts by ARR</h2>
         <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
-          <div class="overflow-x-auto">
+          <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
             <table class="w-full text-sm">
               <thead>
                 <tr class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
@@ -1589,17 +1588,6 @@
   // so a rendering hiccup (e.g. a CDN blip) can never block the live fetch.
   try { initFromRecords(SAMPLE_RAW); } catch (e) { console.error('Initial render failed:', e); }
   loadLiveData();
-
-  // Keep every sticky table header pinned exactly below the sticky top
-  // nav, whatever its real rendered height is (it wraps/shrinks on
-  // narrow screens and when the data badge text changes).
-  function syncHeaderHeightVar(){
-    var header = document.querySelector('header');
-    if (header) document.documentElement.style.setProperty('--header-h', header.offsetHeight + 'px');
-  }
-  syncHeaderHeightVar();
-  window.addEventListener('resize', syncHeaderHeightVar);
-  window.addEventListener('load', syncHeaderHeightVar);
 
 })();
 </script>
