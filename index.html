@@ -36,10 +36,25 @@
      the page scrolls, pinned just below the sticky top nav. --header-h
      is measured live from the actual header element (see script at the
      bottom of the page) so this stays correct even if the header's
-     height changes (badge text wrapping, smaller screens, etc). */
+     height changes (badge text wrapping, smaller screens, etc).
+     Sticky is applied per-<th> (not to the <tr>/<thead>) with its own
+     solid background — sticking the row itself causes ghosting/overlap
+     rendering glitches in table layouts, since the row's background
+     doesn't reliably composite over scrolling body rows once it's torn
+     out of normal flow. Per-cell sticky is the reliable cross-browser
+     pattern for plain HTML tables. */
   :root{ --header-h: 96px; }
-  table thead tr{ position: sticky; top: var(--header-h); z-index: 10; box-shadow: 0 1px 0 0 rgba(15,23,42,0.06); }
-  html.dark table thead tr{ box-shadow: 0 1px 0 0 rgba(0,0,0,0.4); }
+  table thead th{
+    position: sticky;
+    top: var(--header-h);
+    z-index: 10;
+    background: #f8fafc;
+    box-shadow: inset 0 -1px 0 0 rgba(15,23,42,0.08), 0 1px 0 0 rgba(15,23,42,0.06);
+  }
+  html.dark table thead th{
+    background: #1e293b;
+    box-shadow: inset 0 -1px 0 0 rgba(255,255,255,0.06), 0 1px 0 0 rgba(0,0,0,0.4);
+  }
 </style>
 
 <script>
@@ -95,6 +110,7 @@
       <button data-tab="policy" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">Policy-Level View</button>
       <button data-tab="am" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">AM Workbench</button>
       <button data-tab="exec" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">Executive Dashboard</button>
+      <button data-tab="addentry" class="tabbtn px-3.5 py-2.5 text-sm font-medium border-b-2 border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-100">+ Add Entry</button>
     </nav>
   </header>
 
@@ -128,6 +144,7 @@
                 <th class="px-4 py-2.5 font-semibold text-right" data-key="lives">Lives</th>
                 <th class="px-4 py-2.5 font-semibold" data-key="am">AM</th>
                 <th class="px-4 py-2.5 font-semibold" data-key="status">Status</th>
+                <th class="px-4 py-2.5 font-semibold"></th>
               </tr>
             </thead>
             <tbody id="masterBody" class="divide-y divide-slate-100 dark:divide-slate-800"></tbody>
@@ -417,11 +434,46 @@
       </div>
     </section>
 
+    <!-- ================= ADD ENTRY ================= -->
+    <section data-panel="addentry">
+      <div class="mb-4">
+        <h1 class="text-lg font-semibold text-slate-900 dark:text-white">Add Entry</h1>
+        <p class="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Writes a new row straight to the Master Sheet — it'll show up across every tab here once the live feed reloads.</p>
+      </div>
+      <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm p-5">
+        <form id="addEntryForm">
+          <div id="addEntryFields"></div>
+          <div class="mt-5 flex items-center gap-3 flex-wrap">
+            <button type="submit" id="addEntrySubmit" class="rounded-lg bg-[#0055ff] text-white text-sm font-medium px-4 py-2 hover:bg-blue-700 transition-colors">Save to Master Sheet</button>
+            <span id="addEntryStatus" class="text-xs text-slate-400 dark:text-slate-500"></span>
+          </div>
+        </form>
+      </div>
+    </section>
+
   </main>
 
   <footer class="max-w-[1400px] mx-auto px-5 py-6 text-[11px] text-slate-400 dark:text-slate-600">
     Even Healthcare · AM Ops Console — built to the visual template of the Endorsements Dashboard. Sample data only, refresh Master Data to go live.
   </footer>
+
+  <!-- ================= EDIT MODAL ================= -->
+  <div id="editModalOverlay" class="fixed inset-0 z-40 hidden items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
+    <div class="w-full max-w-3xl max-h-[90vh] overflow-y-auto rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl p-5">
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-slate-800 dark:text-slate-100">Edit policy</h3>
+        <button type="button" id="editModalClose" class="h-8 w-8 grid place-items-center rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400">✕</button>
+      </div>
+      <form id="editModalForm">
+        <div id="editModalFields"></div>
+        <div class="mt-5 flex items-center gap-3 flex-wrap">
+          <button type="submit" id="editModalSubmit" class="rounded-lg bg-[#0055ff] text-white text-sm font-medium px-4 py-2 hover:bg-blue-700 transition-colors">Save changes</button>
+          <button type="button" id="editModalCancel" class="rounded-lg border border-slate-200 dark:border-slate-700 text-sm font-medium px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</button>
+          <span id="editModalStatus" class="text-xs text-slate-400 dark:text-slate-500"></span>
+        </div>
+      </form>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -463,6 +515,10 @@
   // the real "Master Sheet" tab) into the dashboard's internal record shape.
   function mapSheetRow(r){
     return {
+      // The Apps Script feed includes each record's actual Master Sheet
+      // row number as "_row" — this is what lets the dashboard write
+      // edits back to the exact right row instead of guessing.
+      sheetRow: (r['_row'] !== undefined && r['_row'] !== null && r['_row'] !== '') ? Number(r['_row']) : null,
       org: (r['Org Name'] || 'Unnamed').toString().trim(),
       legal: (r['Legal Entity Name'] || '').toString().trim() || '—',
       // The live "Master Sheet" has no separate Policy Number column —
@@ -709,6 +765,188 @@
     });
   }
 
+  /* ---------------- WRITE-BACK TO THE MASTER SHEET ----------------
+     Every edit made in the dashboard (Add Entry, the Master Data "Edit"
+     button, "Mark renewed") is POSTed to the same Apps Script deployment
+     that serves the live feed, and only reflected here once that POST
+     succeeds and a fresh reload of the sheet confirms it — the sheet
+     stays the single source of truth, the dashboard never runs ahead
+     of it. This requires the Apps Script to have a doPost(e) handler
+     (see the Code.gs sent alongside this file); if that hasn't been
+     deployed yet, every save below will fail with a clear error toast
+     rather than silently going nowhere. */
+  function postToSheet(action, data, sheetRow){
+    if (!APPS_SCRIPT_URL) return Promise.reject(new Error('No Apps Script URL configured.'));
+    var body = { action: action, data: data };
+    if (sheetRow !== undefined && sheetRow !== null) body.sheetRow = sheetRow;
+    // text/plain avoids a CORS preflight (Apps Script doPost can't answer
+    // OPTIONS requests), which is the standard way to POST JSON to an
+    // Apps Script web app from the browser.
+    return fetch(APPS_SCRIPT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(body)
+    }).then(function(res){
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' from Apps Script');
+      return res.json().catch(function(){ throw new Error('Apps Script did not return JSON — is doPost deployed?'); });
+    }).then(function(json){
+      if (!json || json.ok !== true) throw new Error((json && json.error) || 'Apps Script reported an error');
+      return json;
+    });
+  }
+
+  function isoDate(d){
+    if (!d) return '';
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+
+  // Shared field set for both "Add Entry" and the Master Data edit modal,
+  // so the two never drift out of sync with each other or with the real
+  // sheet's column headers (the object keys returned by readPolicyFields
+  // below must match those headers exactly).
+  function policyFieldsHtml(prefix, v){
+    v = v || {};
+    function esc(s){ return (s==null?'':String(s)).replace(/"/g,'&quot;'); }
+    function field(label, id, type, required){
+      return '<label class="block">'+
+        '<span class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">'+label+(required?' *':'')+'</span>'+
+        '<input id="'+prefix+id+'" type="'+type+'" '+(required?'required':'')+' value="'+esc(v[id])+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />'+
+      '</label>';
+    }
+    function select(label, id, options, required){
+      return '<label class="block">'+
+        '<span class="block text-[11px] font-medium text-slate-500 dark:text-slate-400 mb-1">'+label+(required?' *':'')+'</span>'+
+        '<select id="'+prefix+id+'" '+(required?'required':'')+' class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900">'+
+        '<option value="">—</option>'+
+        options.map(function(o){ return '<option value="'+o+'" '+(v[id]===o?'selected':'')+'>'+o+'</option>'; }).join('')+
+        '</select>'+
+      '</label>';
+    }
+    return '<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">'+
+      field('Org Name','orgName','text',true)+
+      field('Legal Entity Name','legalEntity','text')+
+      field('Policy Name','policyName','text')+
+      select('Policy Type','policyType',['Even OPD','HCU','GMC','GPA'])+
+      select('Account Type','accountType',['Fresh','Roll Over','Churned A/D'])+
+      field('Account Manager','am','text',true)+
+      field('Start Date','startDate','date',true)+
+      field('End Date','endDate','date',true)+
+      field('Insurer','insurer','text')+
+      field('TPA','tpa','text')+
+      field('Partner / Broker','broker','text')+
+      field('Inception Premium','premium','number')+
+      field('Inception Premium (incl GST)','premiumGST','number')+
+      field('Inception Emp Count','empCount','number')+
+      field('Size','size','text')+
+      field('Inception Lives (incl employees)','lives','number')+
+      field('SI','si','number')+
+      field('Policy Structure','structure','text')+
+      field('Payment Tenure','tenure','text')+
+      field('City','city','text')+
+      field('Portal Login','portalLogin','text')+
+    '</div>';
+  }
+
+  function readPolicyFields(prefix){
+    function val(id){ var el = document.getElementById(prefix+id); return el ? el.value.trim() : ''; }
+    var endVal = val('endDate');
+    var endObj = endVal ? new Date(endVal+'T00:00:00') : null;
+    return {
+      'Org Name': val('orgName'),
+      'Legal Entity Name': val('legalEntity'),
+      'Policy Name': val('policyName'),
+      'Policy type': val('policyType'),
+      'Account Type': val('accountType'),
+      'Account Manager': val('am'),
+      'Start Date': val('startDate'),
+      'End Date': endVal,
+      'Insurer': val('insurer'),
+      'TPA': val('tpa'),
+      'Partner / Broker': val('broker'),
+      'Inception Premium': val('premium'),
+      'Inception Premium (inc GST)': val('premiumGST'),
+      'Inception emp count': val('empCount'),
+      'Size': val('size'),
+      'Inception Lives (incl employees)': val('lives'),
+      'SI': val('si'),
+      'Policy Structure': val('structure'),
+      'Payment Tenure': val('tenure'),
+      'City': val('city'),
+      'Portal Login': val('portalLogin'),
+      'Quarter': endObj ? quarterLabel(endObj) : '',
+      'Renewal Month': endObj ? monthLabel(endObj) : ''
+    };
+  }
+
+  /* ---- Edit modal (used from Master Data rows) ---- */
+  var editModalOverlay = document.getElementById('editModalOverlay');
+  function openEditModal(rowId){
+    var r = DATA.find(function(d){ return d.rowId===rowId; });
+    if (!r) return;
+    document.getElementById('editModalFields').innerHTML = policyFieldsHtml('edit', {
+      orgName: r.org, legalEntity: r.legal==='—'?'':r.legal, policyName: r.policyName, policyType: r.type,
+      accountType: r.accountType==='—'?'':r.accountType, am: r.am,
+      startDate: isoDate(r.startDate), endDate: isoDate(r.endDate),
+      insurer: r.insurer==='—'?'':r.insurer, tpa: r.tpa==='—'?'':r.tpa, broker: r.broker==='—'?'':r.broker,
+      premium: r.premium||'', premiumGST: r.premium||'', empCount: r.emp||'', size: r.tier==='—'?'':r.tier,
+      lives: r.lives||'', si: r.si||'', structure: r.structure==='—'?'':r.structure, tenure: r.tenure==='—'?'':r.tenure,
+      city: r.city==='—'?'':r.city, portalLogin: r.portalLogin==='—'?'':r.portalLogin
+    });
+    editModalOverlay.dataset.sheetRow = (r.sheetRow!=null) ? String(r.sheetRow) : '';
+    var statusEl = document.getElementById('editModalStatus');
+    statusEl.textContent = r.sheetRow ? '' : "No sheet row reference for this policy yet — reload live data (it needs the updated Apps Script that returns each row's _row) before this can save.";
+    editModalOverlay.classList.remove('hidden'); editModalOverlay.classList.add('flex');
+  }
+  function closeEditModal(){
+    editModalOverlay.classList.add('hidden'); editModalOverlay.classList.remove('flex');
+  }
+  document.getElementById('editModalClose').addEventListener('click', closeEditModal);
+  document.getElementById('editModalCancel').addEventListener('click', closeEditModal);
+  editModalOverlay.addEventListener('click', function(e){ if (e.target===editModalOverlay) closeEditModal(); });
+  document.getElementById('editModalForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var sheetRow = editModalOverlay.dataset.sheetRow;
+    if (!sheetRow) { toast('Cannot save — this row has no sheet reference. Reload live data first.'); return; }
+    var data = readPolicyFields('edit');
+    var btn = document.getElementById('editModalSubmit');
+    var statusEl = document.getElementById('editModalStatus');
+    btn.disabled = true; btn.textContent = 'Saving…';
+    postToSheet('update', data, Number(sheetRow)).then(function(){
+      toast('✅ Saved to the Master Sheet — refreshing…');
+      closeEditModal();
+      loadLiveData();
+    }).catch(function(err){
+      statusEl.textContent = 'Could not save: ' + err.message;
+      toast('Could not save to the Master Sheet: ' + err.message);
+    }).finally(function(){
+      btn.disabled = false; btn.textContent = 'Save changes';
+    });
+  });
+
+  /* ---- Add Entry tab ---- */
+  document.getElementById('addEntryFields').innerHTML = policyFieldsHtml('add', {});
+  document.getElementById('addEntryForm').addEventListener('submit', function(e){
+    e.preventDefault();
+    var data = readPolicyFields('add');
+    if (!data['Org Name'] || !data['Account Manager'] || !data['Start Date'] || !data['End Date']) {
+      toast('Org Name, Account Manager, Start Date and End Date are required.');
+      return;
+    }
+    var btn = document.getElementById('addEntrySubmit');
+    var statusEl = document.getElementById('addEntryStatus');
+    btn.disabled = true; btn.textContent = 'Saving…'; statusEl.textContent = '';
+    postToSheet('add', data).then(function(){
+      toast('✅ Added to the Master Sheet — refreshing…');
+      document.getElementById('addEntryForm').reset();
+      loadLiveData();
+    }).catch(function(err){
+      statusEl.textContent = 'Could not save: ' + err.message;
+      toast('Could not save to the Master Sheet: ' + err.message);
+    }).finally(function(){
+      btn.disabled = false; btn.textContent = 'Save to Master Sheet';
+    });
+  });
+
   /* ---------------- MASTER DATA ---------------- */
   var masterState = { q:'', status:'all', type:'all' };
   var masterSort = { key:null, dir:1 };
@@ -772,10 +1010,14 @@
         '<td class="px-4 py-2.5 text-right tabular-nums text-slate-700 dark:text-slate-200">'+r.lives+'</td>'+
         '<td class="px-4 py-2.5 text-slate-600 dark:text-slate-300">'+r.am+'</td>'+
         '<td class="px-4 py-2.5">'+statusPill(r.active, r.inScope, r.datesOk)+'</td>'+
+        '<td class="px-4 py-2.5"><button data-edit="'+r.rowId+'" class="text-[#0055ff] dark:text-blue-400 text-xs font-medium hover:underline">Edit</button></td>'+
       '</tr>';
-    }).join('') || '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400 text-sm">No policies match this filter.</td></tr>';
+    }).join('') || '<tr><td colspan="10" class="px-4 py-8 text-center text-slate-400 text-sm">No policies match this filter.</td></tr>';
 
     document.getElementById('masterCount').textContent = rows.length + ' of ' + DATA.length + ' policy rows shown';
+    document.querySelectorAll('#masterBody [data-edit]').forEach(function(btn){
+      btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
+    });
   }
   document.getElementById('masterSearch').addEventListener('input', function(e){ masterState.q = e.target.value; renderMaster(); });
   renderMaster();
@@ -1017,15 +1259,25 @@
   function renewPolicy(rowId){
     var r = DATA.find(function(d){ return d.rowId===rowId; });
     if (!r) return;
-    r.endDate = new Date(r.endDate); r.endDate.setFullYear(r.endDate.getFullYear()+1);
-    r.premium = Math.round(r.premium*1.08);
-    r.active = r.startDate<=TODAY && TODAY<=r.endDate;
-    r.daysLeft = daysBetween(TODAY, r.endDate);
-    r.bucket = (r.active && r.daysLeft<=30) ? 30 : (r.active && r.daysLeft<=60) ? 60 : (r.active && r.daysLeft<=90) ? 90 : null;
-    r.renewalMonth = monthLabel(r.endDate); r.renewalQuarter = quarterLabel(r.endDate);
-    refreshAll();
-    toast('🎉 ' + r.org + ' renewed — locked in through ' + fmtDate(r.endDate));
-    confettiBurst(0.82, 0.35);
+    var newEnd = new Date(r.endDate); newEnd.setFullYear(newEnd.getFullYear()+1);
+    var newPremium = Math.round(r.premium*1.08);
+    if (!r.sheetRow) {
+      toast('Cannot renew ' + r.org + ' — this row has no sheet reference. Reload live data first.');
+      return;
+    }
+    toast('Saving renewal for ' + r.org + '…');
+    postToSheet('update', {
+      'End Date': isoDate(newEnd),
+      'Inception Premium (inc GST)': newPremium,
+      'Quarter': quarterLabel(newEnd),
+      'Renewal Month': monthLabel(newEnd)
+    }, r.sheetRow).then(function(){
+      toast('🎉 ' + r.org + ' renewed — locked in through ' + fmtDate(newEnd));
+      confettiBurst(0.82, 0.35);
+      loadLiveData();
+    }).catch(function(err){
+      toast('Could not save the renewal to the Master Sheet: ' + err.message);
+    });
   }
 
   // Generic small "label / count / bar" breakdown widget, reused for
