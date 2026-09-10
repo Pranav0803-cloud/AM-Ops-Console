@@ -54,6 +54,20 @@
     background: #1e293b;
     box-shadow: inset 0 -1px 0 0 rgba(255,255,255,0.06), 0 1px 0 0 rgba(0,0,0,0.4);
   }
+  /* Column-header filter icon (Master Data): small ▾ button next to a
+     sortable header's label. Sits inside the sticky <th>; its own click
+     handler stops propagation so it doesn't also trigger a sort. */
+  .colfilter-btn{
+    font-size: 9px;
+    line-height: 1;
+    padding: 3px 4px;
+    border-radius: 4px;
+    color: #94a3b8;
+  }
+  .colfilter-btn:hover{ background: rgba(15,23,42,0.06); color: #475569; }
+  html.dark .colfilter-btn:hover{ background: rgba(255,255,255,0.08); color: #cbd5e1; }
+  .colfilter-btn.colfilter-active{ color: #0055ff; font-weight: 700; }
+  html.dark .colfilter-btn.colfilter-active{ color: #60a5fa; }
 </style>
 
 <script>
@@ -124,30 +138,26 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="masterSearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
-          <div id="masterOrgFilter" class="relative inline-block"></div>
-          <div id="masterInsurerFilter" class="relative inline-block"></div>
-          <div id="masterAmFilter" class="relative inline-block"></div>
           <div id="masterCityFilter" class="relative inline-block"></div>
-          <div id="masterDateFilter" class="relative inline-block"></div>
-          <div id="masterStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
-          <div id="masterTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
+          <button id="masterClearFilters" type="button" class="hidden text-xs font-medium text-[#0055ff] dark:text-blue-400 hover:underline whitespace-nowrap">Clear column filters</button>
         </div>
       </div>
+      <p class="text-[11px] text-slate-400 dark:text-slate-500 -mt-2 mb-3">Click the ▾ on any column header below to filter by that column.</p>
 
       <div class="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 shadow-sm">
         <div class="overflow-x-auto overflow-y-auto max-h-[65vh]">
           <table class="w-full text-sm">
             <thead>
               <tr id="masterHead" class="bg-slate-50 dark:bg-slate-800/60 text-left text-[11px] uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                <th class="px-4 py-2.5 font-semibold" data-key="org">Org / Legal Entity</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="type">Policy Type</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="insurer">Insurer</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="start">Start</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="end">End</th>
+                <th class="px-4 py-2.5 font-semibold" data-key="org"><span class="inline-flex items-center gap-1"><span data-label>Org / Legal Entity</span><button type="button" data-colfilter="org" class="colfilter-btn">▾</button></span></th>
+                <th class="px-4 py-2.5 font-semibold" data-key="type"><span class="inline-flex items-center gap-1"><span data-label>Policy Type</span><button type="button" data-colfilter="type" class="colfilter-btn">▾</button></span></th>
+                <th class="px-4 py-2.5 font-semibold" data-key="insurer"><span class="inline-flex items-center gap-1"><span data-label>Insurer</span><button type="button" data-colfilter="insurer" class="colfilter-btn">▾</button></span></th>
+                <th class="px-4 py-2.5 font-semibold" data-key="start"><span class="inline-flex items-center gap-1"><span data-label>Start</span><button type="button" data-colfilter="start" class="colfilter-btn">▾</button></span></th>
+                <th class="px-4 py-2.5 font-semibold" data-key="end"><span class="inline-flex items-center gap-1"><span data-label>End</span><button type="button" data-colfilter="end" class="colfilter-btn">▾</button></span></th>
                 <th class="px-4 py-2.5 font-semibold text-right" data-key="premium">Premium (incl. GST)</th>
                 <th class="px-4 py-2.5 font-semibold text-right" data-key="lives">Lives</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="am">AM</th>
-                <th class="px-4 py-2.5 font-semibold" data-key="status">Status</th>
+                <th class="px-4 py-2.5 font-semibold" data-key="am"><span class="inline-flex items-center gap-1"><span data-label>AM</span><button type="button" data-colfilter="am" class="colfilter-btn">▾</button></span></th>
+                <th class="px-4 py-2.5 font-semibold" data-key="status"><span class="inline-flex items-center gap-1"><span data-label>Status</span><button type="button" data-colfilter="status" class="colfilter-btn">▾</button></span></th>
                 <th class="px-4 py-2.5 font-semibold"></th>
               </tr>
             </thead>
@@ -758,18 +768,43 @@
 
   /* ---------------- generic column sorter ---------------- */
   function makeSortable(headId, state, getters, onSort){
+    // Some headers (Master Data) wrap their text in a <span data-label>
+    // alongside a column-filter button, so sorting must only touch that
+    // span's text — never th.textContent, which would wipe out the
+    // filter button too. Headers without that span (Corp-Wise,
+    // Policy-Level) fall back to the <th> itself, unchanged from before.
     var ths = document.querySelectorAll('#'+headId+' th[data-key]');
     ths.forEach(function(th){
-      if (!th.dataset.label) th.dataset.label = th.textContent.trim();
+      var labelEl = th.querySelector('[data-label]') || th;
+      if (!th.dataset.label) th.dataset.label = labelEl.textContent.trim();
     });
     ths.forEach(function(th){
-      th.addEventListener('click', function(){
+      th.addEventListener('click', function(e){
+        if (e.target.closest('.colfilter-btn')) return; // filter icon click, not a sort click
         var key = th.dataset.key;
         if (state.key === key) state.dir *= -1; else { state.key = key; state.dir = 1; }
-        ths.forEach(function(t){ t.textContent = t.dataset.label; });
-        th.textContent = th.dataset.label + (state.dir===1 ? ' ▲' : ' ▼');
+        ths.forEach(function(t){
+          var lbl = t.querySelector('[data-label]') || t;
+          lbl.textContent = t.dataset.label;
+        });
+        var thisLbl = th.querySelector('[data-label]') || th;
+        thisLbl.textContent = th.dataset.label + (state.dir===1 ? ' ▲' : ' ▼');
         onSort();
       });
+    });
+  }
+  // Segmented button-row filter, still used by Corp-Wise's type filter and
+  // Policy-Level's status/type filters (Master Data moved its equivalents
+  // into column-header popovers, see below).
+  function segButtons(container, options, activeKey, onPick){
+    container.innerHTML = '';
+    options.forEach(function(opt, i){
+      var b = document.createElement('button');
+      b.textContent = opt.label;
+      b.className = 'px-3 py-1.5 ' + (i>0 ? 'border-l border-slate-200 dark:border-slate-700 ' : '') +
+        (opt.key===activeKey ? 'bg-[#0055ff] text-white' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800');
+      b.addEventListener('click', function(){ onPick(opt.key); });
+      container.appendChild(b);
     });
   }
   function applySort(rows, state, getters){
@@ -919,131 +954,156 @@
     }, selected, onChangeCities, rerender, 'All cities');
   }
 
-  // Date-range filter (Master Data's Start/End columns): a button that
-  // opens a small panel to pick which date column to filter on plus a
-  // From/To range, with quick month shortcuts built from whatever months
-  // actually appear in the data for that column. Same open/close pattern
-  // as the multi-select filters above, tracked separately since its state
-  // shape (field + range) doesn't fit the checkbox-list model.
-  var openDateFilterId = null;
-  var dateFilterSelfRedraw = {};
-  function monthOptionsFor(field){
+  /* ---------------- COLUMN-HEADER FILTER POPOVER (Master Data) ----------------
+     Excel-style: a small ▾ button sits next to each filterable header's
+     label; clicking it opens a popover with that column's own control
+     (checklist of unique values, or a date range for Start/End). The
+     popover is appended to document.body and positioned with `fixed`
+     coordinates computed from the button's own bounding rect, rather than
+     being an absolutely-positioned child of the <th> — the table's own
+     wrapper scrolls (overflow-x-auto overflow-y-auto max-h-[65vh]), and a
+     popover anchored inside that box would get clipped by it. It closes
+     on an outside click, Escape, or any scroll (capturing, so it also
+     catches scroll on the table's own scroll box, not just the page). */
+  var colFilterPopoverEl = null;
+  var colFilterCloseHandlers = null;
+  function closeColFilterPopover(){
+    if (colFilterPopoverEl && colFilterPopoverEl.parentNode) colFilterPopoverEl.parentNode.removeChild(colFilterPopoverEl);
+    colFilterPopoverEl = null;
+    if (colFilterCloseHandlers){
+      document.removeEventListener('click', colFilterCloseHandlers.onDocClick, true);
+      document.removeEventListener('keydown', colFilterCloseHandlers.onKeyDown, true);
+      window.removeEventListener('scroll', colFilterCloseHandlers.onScroll, true);
+      window.removeEventListener('resize', colFilterCloseHandlers.onScroll, true);
+      colFilterCloseHandlers = null;
+    }
+  }
+  // buildHtml() -> string, wireFn(popoverEl) attaches listeners. Toggles
+  // closed if the same anchor button is clicked again while open.
+  function openColFilterPopover(anchorBtn, buildHtml, wireFn){
+    var wasOpenForThisAnchor = colFilterPopoverEl && colFilterPopoverEl._anchor === anchorBtn;
+    closeColFilterPopover();
+    if (wasOpenForThisAnchor) return;
+
+    var rect = anchorBtn.getBoundingClientRect();
+    var pop = document.createElement('div');
+    pop.className = 'fixed z-50 w-64 max-h-80 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2 text-xs normal-case tracking-normal font-normal text-slate-700 dark:text-slate-200';
+    pop.style.top = (rect.bottom + 6) + 'px';
+    var left = rect.left;
+    if (left + 260 > window.innerWidth) left = Math.max(8, window.innerWidth - 268);
+    pop.style.left = left + 'px';
+    pop.innerHTML = buildHtml();
+    pop._anchor = anchorBtn;
+    document.body.appendChild(pop);
+    colFilterPopoverEl = pop;
+    wireFn(pop);
+
+    var onDocClick = function(e){
+      if (pop.contains(e.target) || anchorBtn.contains(e.target)) return;
+      closeColFilterPopover();
+    };
+    var onKeyDown = function(e){ if (e.key === 'Escape') closeColFilterPopover(); };
+    var onScroll = function(){ closeColFilterPopover(); };
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('scroll', onScroll, true);
+    window.addEventListener('resize', onScroll, true);
+    colFilterCloseHandlers = { onDocClick: onDocClick, onKeyDown: onKeyDown, onScroll: onScroll };
+  }
+
+  // Checklist content (unique values of a column) shared by every
+  // column-header filter that isn't a date range.
+  function colFilterChecklistHtml(allOptions, selected, allLabel){
+    return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 font-semibold cursor-pointer">'+
+        '<input type="checkbox" data-cf-all '+(selected.length===0?'checked':'')+' /> '+allLabel+
+      '</label>'+
+      '<div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>'+
+      (allOptions.length ? allOptions.map(function(c){
+        return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 cursor-pointer">'+
+          '<input type="checkbox" data-cf-opt value="'+String(c).replace(/"/g,'&quot;')+'" '+(selected.indexOf(c)!==-1?'checked':'')+' /> '+c+
+        '</label>';
+      }).join('') : '<div class="px-2 py-1.5 text-slate-400">Nothing to filter on yet.</div>');
+  }
+  function wireColFilterChecklist(pop, onChangeVals, rerender){
+    var allCb = pop.querySelector('[data-cf-all]');
+    if (allCb) allCb.addEventListener('change', function(){ onChangeVals([]); rerender(); });
+    pop.querySelectorAll('[data-cf-opt]').forEach(function(cb){
+      cb.addEventListener('change', function(){
+        var vals = Array.prototype.slice.call(pop.querySelectorAll('[data-cf-opt]:checked')).map(function(x){ return x.value; });
+        onChangeVals(vals);
+        rerender();
+      });
+    });
+  }
+
+  // Date-range content for the Start / End column filters: a quick-month
+  // dropdown (built from whichever months actually appear on that column)
+  // plus a custom From/To range.
+  function dateMonthOptionsFor(field){
     var set = {};
     DATA.forEach(function(r){
       var d = field==='start' ? r.startDate : r.endDate;
       if (!d) return;
-      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-      set[key] = true;
+      set[d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')] = true;
     });
     return Object.keys(set).sort();
   }
-  function monthLabel(key){
+  function dateMonthKeyLabel(key){
     var parts = key.split('-');
-    var d = new Date(Number(parts[0]), Number(parts[1])-1, 1);
-    return d.toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+    return new Date(Number(parts[0]), Number(parts[1])-1, 1).toLocaleDateString('en-IN', { month:'short', year:'numeric' });
   }
-  function renderDateFilter(containerId, state, rerender){
-    var container = document.getElementById(containerId);
-    if (!container) return;
-    var redrawSelf = function(){ renderDateFilter(containerId, state, rerender); };
-    dateFilterSelfRedraw[containerId] = redrawSelf;
-
-    var isOpen = openDateFilterId === containerId;
-    var active = !!(state.dateFrom || state.dateTo);
-    var label = active ? (state.dateField==='start' ? 'Start date' : 'End date') + ' filtered' : 'Start/End date';
-
-    var html = '<button type="button" class="w-full sm:w-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 whitespace-nowrap">'+
-      '<span>'+label+'</span><span class="text-slate-400 text-[10px]">▾</span></button>';
-
-    if (isOpen){
-      var months = monthOptionsFor(state.dateField);
-      html += '<div class="absolute right-0 sm:left-0 z-20 mt-1 w-72 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-3 space-y-3">'+
-        '<div>'+
-          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Filter which date</div>'+
-          '<div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium" id="'+containerId+'_field">'+
-            '<button type="button" data-field="start" class="px-3 py-1.5 '+(state.dateField==='start'?'bg-[#0055ff] text-white':'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')+'">Start Date</button>'+
-            '<button type="button" data-field="end" class="px-3 py-1.5 border-l border-slate-200 dark:border-slate-700 '+(state.dateField==='end'?'bg-[#0055ff] text-white':'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')+'">End Date</button>'+
-          '</div>'+
+  function colFilterDateHtml(field, dateState){
+    var months = dateMonthOptionsFor(field);
+    return '<div class="space-y-3">'+
+      '<div>'+
+        '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Quick month</div>'+
+        '<select data-cf-month class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none">'+
+          '<option value="">Any month</option>'+
+          (months.length ? months.map(function(m){ return '<option value="'+m+'" '+(dateState.month===m?'selected':'')+'>'+dateMonthKeyLabel(m)+'</option>'; }).join('') : '')+
+        '</select>'+
+      '</div>'+
+      '<div>'+
+        '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Or custom range</div>'+
+        '<div class="flex items-center gap-2">'+
+          '<input type="date" data-cf-from value="'+(dateState.from||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
+          '<span class="text-slate-400">to</span>'+
+          '<input type="date" data-cf-to value="'+(dateState.to||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
         '</div>'+
-        '<div>'+
-          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Quick month</div>'+
-          '<select data-df-month class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none">'+
-            '<option value="">Any month</option>'+
-            (months.length ? months.map(function(m){ return '<option value="'+m+'" '+(state.dateMonth===m?'selected':'')+'>'+monthLabel(m)+'</option>'; }).join('') : '')+
-          '</select>'+
-        '</div>'+
-        '<div>'+
-          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Or custom range</div>'+
-          '<div class="flex items-center gap-2">'+
-            '<input type="date" data-df-from value="'+(state.dateFrom||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
-            '<span class="text-slate-400 text-xs">to</span>'+
-            '<input type="date" data-df-to value="'+(state.dateTo||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
-          '</div>'+
-        '</div>'+
-        '<button type="button" data-df-clear class="text-[11px] font-medium text-[#0055ff] dark:text-blue-400 hover:underline">Clear date filter</button>'+
-      '</div>';
-    }
-    container.innerHTML = html;
-
-    container.querySelector('button').addEventListener('click', function(e){
-      e.stopPropagation();
-      openDateFilterId = isOpen ? null : containerId;
-      redrawSelf();
+      '</div>'+
+      '<button type="button" data-cf-clear class="text-[11px] font-medium text-[#0055ff] dark:text-blue-400 hover:underline">Clear this filter</button>'+
+    '</div>';
+  }
+  function wireColFilterDate(pop, dateState, rerender){
+    var monthSel = pop.querySelector('[data-cf-month]');
+    if (monthSel) monthSel.addEventListener('change', function(){
+      dateState.month = monthSel.value; dateState.from = ''; dateState.to = '';
+      rerender();
+      closeColFilterPopover();
     });
-
-    if (isOpen){
-      container.querySelectorAll('[data-field]').forEach(function(b){
-        b.addEventListener('click', function(e){
-          e.stopPropagation();
-          state.dateField = b.getAttribute('data-field');
-          state.dateMonth = ''; state.dateFrom = ''; state.dateTo = '';
-          redrawSelf();
-          rerender();
-        });
-      });
-      var monthSel = container.querySelector('[data-df-month]');
-      if (monthSel) monthSel.addEventListener('change', function(){
-        state.dateMonth = monthSel.value;
-        state.dateFrom = ''; state.dateTo = '';
-        redrawSelf();
-        rerender();
-      });
-      var fromInp = container.querySelector('[data-df-from]');
-      var toInp = container.querySelector('[data-df-to]');
-      if (fromInp) fromInp.addEventListener('change', function(){ state.dateFrom = fromInp.value; state.dateMonth = ''; redrawSelf(); rerender(); });
-      if (toInp) toInp.addEventListener('change', function(){ state.dateTo = toInp.value; state.dateMonth = ''; redrawSelf(); rerender(); });
-      var clearBtn = container.querySelector('[data-df-clear]');
-      if (clearBtn) clearBtn.addEventListener('click', function(e){
-        e.stopPropagation();
-        state.dateMonth = ''; state.dateFrom = ''; state.dateTo = '';
-        redrawSelf();
-        rerender();
-      });
-    }
+    var fromInp = pop.querySelector('[data-cf-from]');
+    var toInp = pop.querySelector('[data-cf-to]');
+    if (fromInp) fromInp.addEventListener('change', function(){ dateState.from = fromInp.value; dateState.month = ''; rerender(); });
+    if (toInp) toInp.addEventListener('change', function(){ dateState.to = toInp.value; dateState.month = ''; rerender(); });
+    var clearBtn = pop.querySelector('[data-cf-clear]');
+    if (clearBtn) clearBtn.addEventListener('click', function(){
+      dateState.month = ''; dateState.from = ''; dateState.to = '';
+      rerender();
+      closeColFilterPopover();
+    });
   }
-  document.addEventListener('click', function(e){
-    if (!openDateFilterId) return;
-    var container = document.getElementById(openDateFilterId);
-    if (container && container.contains(e.target)) return;
-    var id = openDateFilterId;
-    openDateFilterId = null;
-    var redraw = dateFilterSelfRedraw[id];
-    if (redraw) redraw();
-  });
-  // Does record r's date `field` ('start'/'end') fall inside state's
-  // active month or from/to range? Returns true when no date filter is set.
-  function passesDateFilter(r, state){
-    var d = state.dateField==='start' ? r.startDate : r.endDate;
-    if (state.dateMonth){
+  // Does record r's date `field` ('start'/'end') fall inside dateState's
+  // active month or from/to range? True when no date filter is set.
+  function passesDateFilter(r, field, dateState){
+    var d = field==='start' ? r.startDate : r.endDate;
+    if (dateState.month){
       if (!d) return false;
-      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
-      return key === state.dateMonth;
+      return (d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0')) === dateState.month;
     }
-    if (state.dateFrom || state.dateTo){
+    if (dateState.from || dateState.to){
       if (!d) return false;
       var t = d.getTime();
-      if (state.dateFrom && t < new Date(state.dateFrom).getTime()) return false;
-      if (state.dateTo && t > new Date(state.dateTo).getTime() + 86399999) return false;
+      if (dateState.from && t < new Date(dateState.from).getTime()) return false;
+      if (dateState.to && t > new Date(dateState.to).getTime() + 86399999) return false;
     }
     return true;
   }
@@ -1248,7 +1308,11 @@
   });
 
   /* ---------------- MASTER DATA ---------------- */
-  var masterState = { q:'', status:'all', type:'all', cities:[], orgs:[], insurers:[], ams:[], dateField:'end', dateMonth:'', dateFrom:'', dateTo:'' };
+  var masterState = {
+    q:'', cities:[],
+    orgs:[], types:[], insurers:[], ams:[], statuses:[],
+    startDate:{ month:'', from:'', to:'' }, endDate:{ month:'', from:'', to:'' }
+  };
   var masterSort = { key:null, dir:1 };
   var masterGetters = {
     org:function(r){return r.org.toLowerCase();}, type:function(r){return r.type;}, insurer:function(r){return r.insurer;},
@@ -1258,56 +1322,81 @@
   };
   makeSortable('masterHead', masterSort, masterGetters, function(){ renderMaster(); });
 
-  function segButtons(container, options, activeKey, onPick){
-    container.innerHTML = '';
-    options.forEach(function(opt, i){
-      var b = document.createElement('button');
-      b.textContent = opt.label;
-      b.className = 'px-3 py-1.5 ' + (i>0 ? 'border-l border-slate-200 dark:border-slate-700 ' : '') +
-        (opt.key===activeKey ? 'bg-[#0055ff] text-white' : 'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800');
-      b.addEventListener('click', function(){ onPick(opt.key); });
-      container.appendChild(b);
+  // Each column's ▾ button opens the same shared popover with content
+  // specific to that column. Wired once (thead is static HTML, never
+  // re-rendered) — only the tbody, count and icon active-states redraw.
+  var masterColFilterDefs = {
+    org: { kind:'checklist', label:'All orgs / legal entities', getOptions:function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.org; }).filter(Boolean))).sort();
+    }, get:function(){ return masterState.orgs; }, set:function(v){ masterState.orgs = v; } },
+    type: { kind:'checklist', label:'All policy types', getOptions:function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.type; }).filter(Boolean))).sort();
+    }, get:function(){ return masterState.types; }, set:function(v){ masterState.types = v; } },
+    insurer: { kind:'checklist', label:'All insurers', getOptions:function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.insurer; }).filter(function(c){ return c && c!=='—'; }))).sort();
+    }, get:function(){ return masterState.insurers; }, set:function(v){ masterState.insurers = v; } },
+    am: { kind:'checklist', label:'All AMs', getOptions:function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.am; }).filter(Boolean))).sort();
+    }, get:function(){ return masterState.ams; }, set:function(v){ masterState.ams = v; } },
+    status: { kind:'checklist', label:'All statuses', getOptions:function(){ return ['Active','Expired']; },
+      get:function(){ return masterState.statuses; }, set:function(v){ masterState.statuses = v; } },
+    start: { kind:'date', field:'start', get:function(){ return masterState.startDate; } },
+    end: { kind:'date', field:'end', get:function(){ return masterState.endDate; } }
+  };
+  document.querySelectorAll('#masterHead [data-colfilter]').forEach(function(btn){
+    var key = btn.getAttribute('data-colfilter');
+    var def = masterColFilterDefs[key];
+    if (!def) return;
+    btn.addEventListener('click', function(e){
+      e.stopPropagation();
+      if (def.kind === 'checklist'){
+        openColFilterPopover(btn, function(){
+          return colFilterChecklistHtml(def.getOptions(), def.get(), def.label);
+        }, function(pop){
+          wireColFilterChecklist(pop, function(vals){ def.set(vals); }, renderMaster);
+        });
+      } else {
+        openColFilterPopover(btn, function(){
+          return colFilterDateHtml(def.field, def.get());
+        }, function(pop){
+          wireColFilterDate(pop, def.get(), renderMaster);
+        });
+      }
     });
+  });
+  function updateMasterFilterIcons(){
+    Object.keys(masterColFilterDefs).forEach(function(key){
+      var def = masterColFilterDefs[key];
+      var btn = document.querySelector('#masterHead [data-colfilter="'+key+'"]');
+      if (!btn) return;
+      var active = def.kind === 'checklist' ? def.get().length > 0 : !!(def.get().month || def.get().from || def.get().to);
+      btn.classList.toggle('colfilter-active', active);
+    });
+    var anyActive = Object.keys(masterColFilterDefs).some(function(key){
+      var def = masterColFilterDefs[key];
+      return def.kind === 'checklist' ? def.get().length > 0 : !!(def.get().month || def.get().from || def.get().to);
+    }) || masterState.cities.length > 0;
+    document.getElementById('masterClearFilters').classList.toggle('hidden', !anyActive);
   }
+  document.getElementById('masterClearFilters').addEventListener('click', function(){
+    masterState.cities = []; masterState.orgs = []; masterState.types = []; masterState.insurers = []; masterState.ams = []; masterState.statuses = [];
+    masterState.startDate = { month:'', from:'', to:'' }; masterState.endDate = { month:'', from:'', to:'' };
+    closeColFilterPopover();
+    renderMaster();
+  });
 
   function renderMaster(){
-    segButtons(document.getElementById('masterStatusFilter'), [
-      {key:'all', label:'All ('+DATA.length+')'},
-      {key:'active', label:'Active ('+DATA.filter(function(r){return r.active;}).length+')'},
-      {key:'expired', label:'Expired ('+DATA.filter(function(r){return !r.active;}).length+')'}
-    ], masterState.status, function(k){ masterState.status=k; renderMaster(); });
-
-    segButtons(document.getElementById('masterTypeFilter'), [
-      {key:'all', label:'All types'},
-      {key:'Even OPD', label:'Even OPD'},
-      {key:'HCU', label:'HCU'},
-      {key:'legacy', label:'Legacy'}
-    ], masterState.type, function(k){ masterState.type=k; renderMaster(); });
-
     renderCityMultiFilter('masterCityFilter', masterState.cities, function(vals){ masterState.cities = vals; }, renderMaster);
-    renderMultiFilter('masterOrgFilter', function(){
-      return Array.from(new Set(DATA.map(function(r){ return r.org; }).filter(Boolean))).sort();
-    }, masterState.orgs, function(vals){ masterState.orgs = vals; }, renderMaster, 'All orgs / legal entities');
-    renderMultiFilter('masterInsurerFilter', function(){
-      return Array.from(new Set(DATA.map(function(r){ return r.insurer; }).filter(function(c){ return c && c!=='—'; }))).sort();
-    }, masterState.insurers, function(vals){ masterState.insurers = vals; }, renderMaster, 'All insurers');
-    renderMultiFilter('masterAmFilter', function(){
-      return Array.from(new Set(DATA.map(function(r){ return r.am; }).filter(Boolean))).sort();
-    }, masterState.ams, function(vals){ masterState.ams = vals; }, renderMaster, 'All AMs');
-    renderDateFilter('masterDateFilter', masterState, renderMaster);
 
     var rows = DATA.filter(function(r){
-      if (masterState.status==='active' && !r.active) return false;
-      if (masterState.status==='expired' && r.active) return false;
-      if (masterState.type!=='all'){
-        if (masterState.type==='legacy' && r.inScope) return false;
-        if (masterState.type!=='legacy' && r.type!==masterState.type) return false;
-      }
+      if (masterState.statuses.length && masterState.statuses.indexOf(r.active ? 'Active' : 'Expired')===-1) return false;
+      if (masterState.types.length && masterState.types.indexOf(r.type)===-1) return false;
       if (masterState.cities.length && masterState.cities.indexOf(r.city)===-1) return false;
       if (masterState.orgs.length && masterState.orgs.indexOf(r.org)===-1) return false;
       if (masterState.insurers.length && masterState.insurers.indexOf(r.insurer)===-1) return false;
       if (masterState.ams.length && masterState.ams.indexOf(r.am)===-1) return false;
-      if (!passesDateFilter(r, masterState)) return false;
+      if (!passesDateFilter(r, 'start', masterState.startDate)) return false;
+      if (!passesDateFilter(r, 'end', masterState.endDate)) return false;
       if (masterState.q){
         var hay = (r.org+' '+r.legal+' '+r.policyLabel).toLowerCase();
         if (hay.indexOf(masterState.q.toLowerCase())===-1) return false;
@@ -1335,6 +1424,7 @@
     document.querySelectorAll('#masterBody [data-edit]').forEach(function(btn){
       btn.addEventListener('click', function(){ openEditModal(btn.getAttribute('data-edit')); });
     });
+    updateMasterFilterIcons();
   }
   document.getElementById('masterSearch').addEventListener('input', function(e){ masterState.q = e.target.value; renderMaster(); });
   renderMaster();
