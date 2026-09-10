@@ -962,9 +962,12 @@
      coordinates computed from the button's own bounding rect, rather than
      being an absolutely-positioned child of the <th> — the table's own
      wrapper scrolls (overflow-x-auto overflow-y-auto max-h-[65vh]), and a
-     popover anchored inside that box would get clipped by it. It closes
-     on an outside click, Escape, or any scroll (capturing, so it also
-     catches scroll on the table's own scroll box, not just the page). */
+     popover anchored inside that box would get clipped by it. It stays
+     open through any scroll (page or the table's own inner scroll) —
+     scrolling just repositions it to keep tracking its anchor button, so
+     you can keep checking boxes while the table scrolls under a sticky
+     header without the panel vanishing. It only closes on an outside
+     click or Escape. */
   var colFilterPopoverEl = null;
   var colFilterCloseHandlers = null;
   function closeColFilterPopover(){
@@ -973,8 +976,8 @@
     if (colFilterCloseHandlers){
       document.removeEventListener('click', colFilterCloseHandlers.onDocClick, true);
       document.removeEventListener('keydown', colFilterCloseHandlers.onKeyDown, true);
-      window.removeEventListener('scroll', colFilterCloseHandlers.onScroll, true);
-      window.removeEventListener('resize', colFilterCloseHandlers.onScroll, true);
+      window.removeEventListener('scroll', colFilterCloseHandlers.onReposition, true);
+      window.removeEventListener('resize', colFilterCloseHandlers.onReposition, true);
       colFilterCloseHandlers = null;
     }
   }
@@ -985,17 +988,21 @@
     closeColFilterPopover();
     if (wasOpenForThisAnchor) return;
 
-    var rect = anchorBtn.getBoundingClientRect();
     var pop = document.createElement('div');
     pop.className = 'fixed z-50 w-64 max-h-80 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2 text-xs normal-case tracking-normal font-normal text-slate-700 dark:text-slate-200';
-    pop.style.top = (rect.bottom + 6) + 'px';
-    var left = rect.left;
-    if (left + 260 > window.innerWidth) left = Math.max(8, window.innerWidth - 268);
-    pop.style.left = left + 'px';
     pop.innerHTML = buildHtml();
     pop._anchor = anchorBtn;
     document.body.appendChild(pop);
     colFilterPopoverEl = pop;
+
+    function reposition(){
+      var rect = anchorBtn.getBoundingClientRect();
+      pop.style.top = (rect.bottom + 6) + 'px';
+      var left = rect.left;
+      if (left + 260 > window.innerWidth) left = Math.max(8, window.innerWidth - 268);
+      pop.style.left = left + 'px';
+    }
+    reposition();
     wireFn(pop);
 
     var onDocClick = function(e){
@@ -1003,12 +1010,11 @@
       closeColFilterPopover();
     };
     var onKeyDown = function(e){ if (e.key === 'Escape') closeColFilterPopover(); };
-    var onScroll = function(){ closeColFilterPopover(); };
     document.addEventListener('click', onDocClick, true);
     document.addEventListener('keydown', onKeyDown, true);
-    window.addEventListener('scroll', onScroll, true);
-    window.addEventListener('resize', onScroll, true);
-    colFilterCloseHandlers = { onDocClick: onDocClick, onKeyDown: onKeyDown, onScroll: onScroll };
+    window.addEventListener('scroll', reposition, true);
+    window.addEventListener('resize', reposition, true);
+    colFilterCloseHandlers = { onDocClick: onDocClick, onKeyDown: onKeyDown, onReposition: reposition };
   }
 
   // Checklist content (unique values of a column) shared by every
