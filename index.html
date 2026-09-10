@@ -124,7 +124,11 @@
         </div>
         <div class="flex items-center gap-2 flex-wrap">
           <input id="masterSearch" type="text" placeholder="Search org, legal entity, policy no." class="w-64 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 dark:focus:ring-blue-900" />
+          <div id="masterOrgFilter" class="relative inline-block"></div>
+          <div id="masterInsurerFilter" class="relative inline-block"></div>
+          <div id="masterAmFilter" class="relative inline-block"></div>
           <div id="masterCityFilter" class="relative inline-block"></div>
+          <div id="masterDateFilter" class="relative inline-block"></div>
           <div id="masterStatusFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
           <div id="masterTypeFilter" class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium"></div>
         </div>
@@ -836,24 +840,25 @@
     return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
   }
 
-  // Multi-select city filter, shared by Master Data, Corp-Wise,
-  // Policy-Level and the AM Workbench's Client Ops search bar. A button
-  // showing "All cities" / one city name / "N cities" opens a checkbox
-  // panel; the option list is rebuilt from whatever's actually in DATA
-  // so a new city on the sheet shows up automatically. Only one panel
-  // is ever open at a time (openCityFilterId), and a document-level
-  // click closes it if you click anywhere outside it.
-  var openCityFilterId = null;
-  var cityFilterSelfRedraw = {}; // containerId -> redraw just this filter component (open/close, no data refilter)
-  function renderCityMultiFilter(containerId, selected, onChangeCities, rerender){
+  // Generic multi-select filter component, shared by every "pick any
+  // number of X" filter across the dashboard (city, org/legal entity,
+  // insurer, AM, ...). A button showing "All <label>" / one value / "N
+  // selected" opens a checkbox panel; the option list is supplied by a
+  // getOptions() callback so it can be recomputed from whatever's
+  // actually in DATA (a new insurer on the sheet shows up automatically).
+  // Only one panel is ever open at a time (openMultiFilterId), and a
+  // document-level click closes it if you click anywhere outside it.
+  var openMultiFilterId = null;
+  var multiFilterSelfRedraw = {}; // containerId -> redraw just this filter component (open/close, no data refilter)
+  function renderMultiFilter(containerId, getOptions, selected, onChangeVals, rerender, allLabel){
     var container = document.getElementById(containerId);
     if (!container) return;
-    var redrawSelf = function(){ renderCityMultiFilter(containerId, selected, onChangeCities, rerender); };
-    cityFilterSelfRedraw[containerId] = redrawSelf;
+    var redrawSelf = function(){ renderMultiFilter(containerId, getOptions, selected, onChangeVals, rerender, allLabel); };
+    multiFilterSelfRedraw[containerId] = redrawSelf;
 
-    var allCities = Array.from(new Set(DATA.map(function(r){ return r.city; }).filter(function(c){ return c && c!=='—'; }))).sort();
-    var isOpen = openCityFilterId === containerId;
-    var label = selected.length===0 ? 'All cities' : (selected.length===1 ? selected[0] : selected.length + ' cities');
+    var allOptions = getOptions();
+    var isOpen = openMultiFilterId === containerId;
+    var label = selected.length===0 ? allLabel : (selected.length===1 ? selected[0] : selected.length + ' selected');
 
     var html = '<button type="button" class="w-full sm:w-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 whitespace-nowrap">'+
       '<span>'+label+'</span><span class="text-slate-400 text-[10px]">▾</span></button>';
@@ -861,14 +866,14 @@
     if (isOpen){
       html += '<div class="absolute right-0 sm:left-0 z-20 mt-1 w-56 max-h-64 overflow-y-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-2">'+
         '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold cursor-pointer">'+
-          '<input type="checkbox" data-city-all '+(selected.length===0?'checked':'')+' /> All cities'+
+          '<input type="checkbox" data-mf-all '+(selected.length===0?'checked':'')+' /> '+allLabel+
         '</label>'+
         '<div class="my-1 border-t border-slate-100 dark:border-slate-800"></div>'+
-        (allCities.length ? allCities.map(function(c){
+        (allOptions.length ? allOptions.map(function(c){
           return '<label class="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-slate-50 dark:hover:bg-slate-800 text-xs cursor-pointer">'+
-            '<input type="checkbox" data-city-opt value="'+c+'" '+(selected.indexOf(c)!==-1?'checked':'')+' /> '+c+
+            '<input type="checkbox" data-mf-opt value="'+c.replace(/"/g,'&quot;')+'" '+(selected.indexOf(c)!==-1?'checked':'')+' /> '+c+
           '</label>';
-        }).join('') : '<div class="px-2 py-1.5 text-xs text-slate-400">No cities in the data yet.</div>') +
+        }).join('') : '<div class="px-2 py-1.5 text-xs text-slate-400">Nothing to filter on yet.</div>') +
       '</div>';
     }
     container.innerHTML = html;
@@ -880,31 +885,168 @@
     // rerender, since that's what has to refilter the data.
     container.querySelector('button').addEventListener('click', function(e){
       e.stopPropagation();
-      openCityFilterId = isOpen ? null : containerId;
+      openMultiFilterId = isOpen ? null : containerId;
       redrawSelf();
     });
 
     if (isOpen){
-      var allCb = container.querySelector('[data-city-all]');
-      if (allCb) allCb.addEventListener('change', function(){ onChangeCities([]); rerender(); });
-      container.querySelectorAll('[data-city-opt]').forEach(function(cb){
+      var allCb = container.querySelector('[data-mf-all]');
+      if (allCb) allCb.addEventListener('change', function(){ onChangeVals([]); rerender(); });
+      container.querySelectorAll('[data-mf-opt]').forEach(function(cb){
         cb.addEventListener('change', function(){
-          var vals = Array.prototype.slice.call(container.querySelectorAll('[data-city-opt]:checked')).map(function(x){ return x.value; });
-          onChangeCities(vals);
+          var vals = Array.prototype.slice.call(container.querySelectorAll('[data-mf-opt]:checked')).map(function(x){ return x.value; });
+          onChangeVals(vals);
           rerender();
         });
       });
     }
   }
   document.addEventListener('click', function(e){
-    if (!openCityFilterId) return;
-    var container = document.getElementById(openCityFilterId);
+    if (!openMultiFilterId) return;
+    var container = document.getElementById(openMultiFilterId);
     if (container && container.contains(e.target)) return; // click was inside the open panel/button — its own handler deals with it
-    var id = openCityFilterId;
-    openCityFilterId = null;
-    var redraw = cityFilterSelfRedraw[id];
+    var id = openMultiFilterId;
+    openMultiFilterId = null;
+    var redraw = multiFilterSelfRedraw[id];
     if (redraw) redraw();
   });
+
+  // City filter is just the generic multi-filter with its options pulled
+  // from DATA.city — kept as its own function since it's used across 4 tabs.
+  function renderCityMultiFilter(containerId, selected, onChangeCities, rerender){
+    renderMultiFilter(containerId, function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.city; }).filter(function(c){ return c && c!=='—'; }))).sort();
+    }, selected, onChangeCities, rerender, 'All cities');
+  }
+
+  // Date-range filter (Master Data's Start/End columns): a button that
+  // opens a small panel to pick which date column to filter on plus a
+  // From/To range, with quick month shortcuts built from whatever months
+  // actually appear in the data for that column. Same open/close pattern
+  // as the multi-select filters above, tracked separately since its state
+  // shape (field + range) doesn't fit the checkbox-list model.
+  var openDateFilterId = null;
+  var dateFilterSelfRedraw = {};
+  function monthOptionsFor(field){
+    var set = {};
+    DATA.forEach(function(r){
+      var d = field==='start' ? r.startDate : r.endDate;
+      if (!d) return;
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      set[key] = true;
+    });
+    return Object.keys(set).sort();
+  }
+  function monthLabel(key){
+    var parts = key.split('-');
+    var d = new Date(Number(parts[0]), Number(parts[1])-1, 1);
+    return d.toLocaleDateString('en-IN', { month:'short', year:'numeric' });
+  }
+  function renderDateFilter(containerId, state, rerender){
+    var container = document.getElementById(containerId);
+    if (!container) return;
+    var redrawSelf = function(){ renderDateFilter(containerId, state, rerender); };
+    dateFilterSelfRedraw[containerId] = redrawSelf;
+
+    var isOpen = openDateFilterId === containerId;
+    var active = !!(state.dateFrom || state.dateTo);
+    var label = active ? (state.dateField==='start' ? 'Start date' : 'End date') + ' filtered' : 'Start/End date';
+
+    var html = '<button type="button" class="w-full sm:w-auto rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 inline-flex items-center gap-1.5 whitespace-nowrap">'+
+      '<span>'+label+'</span><span class="text-slate-400 text-[10px]">▾</span></button>';
+
+    if (isOpen){
+      var months = monthOptionsFor(state.dateField);
+      html += '<div class="absolute right-0 sm:left-0 z-20 mt-1 w-72 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg p-3 space-y-3">'+
+        '<div>'+
+          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Filter which date</div>'+
+          '<div class="inline-flex rounded-lg border border-slate-200 dark:border-slate-700 overflow-hidden text-xs font-medium" id="'+containerId+'_field">'+
+            '<button type="button" data-field="start" class="px-3 py-1.5 '+(state.dateField==='start'?'bg-[#0055ff] text-white':'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')+'">Start Date</button>'+
+            '<button type="button" data-field="end" class="px-3 py-1.5 border-l border-slate-200 dark:border-slate-700 '+(state.dateField==='end'?'bg-[#0055ff] text-white':'bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800')+'">End Date</button>'+
+          '</div>'+
+        '</div>'+
+        '<div>'+
+          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Quick month</div>'+
+          '<select data-df-month class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none">'+
+            '<option value="">Any month</option>'+
+            (months.length ? months.map(function(m){ return '<option value="'+m+'" '+(state.dateMonth===m?'selected':'')+'>'+monthLabel(m)+'</option>'; }).join('') : '')+
+          '</select>'+
+        '</div>'+
+        '<div>'+
+          '<div class="text-[10px] font-semibold uppercase tracking-wide text-slate-400 mb-1.5">Or custom range</div>'+
+          '<div class="flex items-center gap-2">'+
+            '<input type="date" data-df-from value="'+(state.dateFrom||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
+            '<span class="text-slate-400 text-xs">to</span>'+
+            '<input type="date" data-df-to value="'+(state.dateTo||'')+'" class="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-2 py-1.5 text-xs outline-none" />'+
+          '</div>'+
+        '</div>'+
+        '<button type="button" data-df-clear class="text-[11px] font-medium text-[#0055ff] dark:text-blue-400 hover:underline">Clear date filter</button>'+
+      '</div>';
+    }
+    container.innerHTML = html;
+
+    container.querySelector('button').addEventListener('click', function(e){
+      e.stopPropagation();
+      openDateFilterId = isOpen ? null : containerId;
+      redrawSelf();
+    });
+
+    if (isOpen){
+      container.querySelectorAll('[data-field]').forEach(function(b){
+        b.addEventListener('click', function(e){
+          e.stopPropagation();
+          state.dateField = b.getAttribute('data-field');
+          state.dateMonth = ''; state.dateFrom = ''; state.dateTo = '';
+          redrawSelf();
+          rerender();
+        });
+      });
+      var monthSel = container.querySelector('[data-df-month]');
+      if (monthSel) monthSel.addEventListener('change', function(){
+        state.dateMonth = monthSel.value;
+        state.dateFrom = ''; state.dateTo = '';
+        redrawSelf();
+        rerender();
+      });
+      var fromInp = container.querySelector('[data-df-from]');
+      var toInp = container.querySelector('[data-df-to]');
+      if (fromInp) fromInp.addEventListener('change', function(){ state.dateFrom = fromInp.value; state.dateMonth = ''; redrawSelf(); rerender(); });
+      if (toInp) toInp.addEventListener('change', function(){ state.dateTo = toInp.value; state.dateMonth = ''; redrawSelf(); rerender(); });
+      var clearBtn = container.querySelector('[data-df-clear]');
+      if (clearBtn) clearBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        state.dateMonth = ''; state.dateFrom = ''; state.dateTo = '';
+        redrawSelf();
+        rerender();
+      });
+    }
+  }
+  document.addEventListener('click', function(e){
+    if (!openDateFilterId) return;
+    var container = document.getElementById(openDateFilterId);
+    if (container && container.contains(e.target)) return;
+    var id = openDateFilterId;
+    openDateFilterId = null;
+    var redraw = dateFilterSelfRedraw[id];
+    if (redraw) redraw();
+  });
+  // Does record r's date `field` ('start'/'end') fall inside state's
+  // active month or from/to range? Returns true when no date filter is set.
+  function passesDateFilter(r, state){
+    var d = state.dateField==='start' ? r.startDate : r.endDate;
+    if (state.dateMonth){
+      if (!d) return false;
+      var key = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+      return key === state.dateMonth;
+    }
+    if (state.dateFrom || state.dateTo){
+      if (!d) return false;
+      var t = d.getTime();
+      if (state.dateFrom && t < new Date(state.dateFrom).getTime()) return false;
+      if (state.dateTo && t > new Date(state.dateTo).getTime() + 86399999) return false;
+    }
+    return true;
+  }
 
   // Shared field set for both "Add Entry" and the Master Data edit modal,
   // so the two never drift out of sync with each other or with the real
@@ -1106,7 +1248,7 @@
   });
 
   /* ---------------- MASTER DATA ---------------- */
-  var masterState = { q:'', status:'all', type:'all', cities:[] };
+  var masterState = { q:'', status:'all', type:'all', cities:[], orgs:[], insurers:[], ams:[], dateField:'end', dateMonth:'', dateFrom:'', dateTo:'' };
   var masterSort = { key:null, dir:1 };
   var masterGetters = {
     org:function(r){return r.org.toLowerCase();}, type:function(r){return r.type;}, insurer:function(r){return r.insurer;},
@@ -1143,6 +1285,16 @@
     ], masterState.type, function(k){ masterState.type=k; renderMaster(); });
 
     renderCityMultiFilter('masterCityFilter', masterState.cities, function(vals){ masterState.cities = vals; }, renderMaster);
+    renderMultiFilter('masterOrgFilter', function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.org; }).filter(Boolean))).sort();
+    }, masterState.orgs, function(vals){ masterState.orgs = vals; }, renderMaster, 'All orgs / legal entities');
+    renderMultiFilter('masterInsurerFilter', function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.insurer; }).filter(function(c){ return c && c!=='—'; }))).sort();
+    }, masterState.insurers, function(vals){ masterState.insurers = vals; }, renderMaster, 'All insurers');
+    renderMultiFilter('masterAmFilter', function(){
+      return Array.from(new Set(DATA.map(function(r){ return r.am; }).filter(Boolean))).sort();
+    }, masterState.ams, function(vals){ masterState.ams = vals; }, renderMaster, 'All AMs');
+    renderDateFilter('masterDateFilter', masterState, renderMaster);
 
     var rows = DATA.filter(function(r){
       if (masterState.status==='active' && !r.active) return false;
@@ -1152,6 +1304,10 @@
         if (masterState.type!=='legacy' && r.type!==masterState.type) return false;
       }
       if (masterState.cities.length && masterState.cities.indexOf(r.city)===-1) return false;
+      if (masterState.orgs.length && masterState.orgs.indexOf(r.org)===-1) return false;
+      if (masterState.insurers.length && masterState.insurers.indexOf(r.insurer)===-1) return false;
+      if (masterState.ams.length && masterState.ams.indexOf(r.am)===-1) return false;
+      if (!passesDateFilter(r, masterState)) return false;
       if (masterState.q){
         var hay = (r.org+' '+r.legal+' '+r.policyLabel).toLowerCase();
         if (hay.indexOf(masterState.q.toLowerCase())===-1) return false;
